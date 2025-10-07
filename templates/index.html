@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu principal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0b8793, #360033);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 40px;
+        }
+        .btn {
+            display: block;
+            background: white;
+            color: #360033;
+            border: none;
+            padding: 15px 30px;
+            margin: 15px auto;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            width: 200px;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #ffcc00;
+            color: black;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Menu principal</h1>
+        <button class="btn" onclick="location.href='/pointeuse'">Pointeuse</button>
+        <button class="btn" onclick="location.href='/imprimante'">Imprimante</button>
+        <button class="btn" onclick="location.href='/rapport'">Rapport</button>
+        <button class="btn" onclick="location.href='/Configuration'">Configuration</button>
+        <button class="btn" onclick="ImporterExcel()">Importer Utilisateurs Excel</button>
+        <button class="btn" onclick="location.href='/Utilisateur'">Utilisateur</button>
+    </div>
+</body>
+<script>
+function ImporterExcel() {
+    fetch('/Import_Excel')
+    .then(response => response.text())
+    .then(data => {
+        alert("✅ Importation terminée avec succès !");
+    })
+    .catch(error => {
+        alert("❌ Erreur lors de l'importation : " + error);
+    });
+}
+</script>
+</html>

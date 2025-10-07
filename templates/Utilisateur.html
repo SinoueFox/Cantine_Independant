@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utilisateurs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <style>
+        body { font-size: 0.95rem; }
+        .spinner { display: none; }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-3">
+    <h3 class="text-center mb-3">👥 Gestion des Utilisateurs</h3>
+
+    <!-- Formulaire d’ajout -->
+    <div class="card p-3 mb-3 shadow-sm">
+        <form method="POST" action="/ajouter_utilisateur" class="row g-2">
+            <div class="col-4 col-md-3">
+                <input type="number" class="form-control" name="Code_Utilisateur" placeholder="Code" required>
+            </div>
+            <div class="col-8 col-md-6">
+                <input type="text" class="form-control" name="Nom_Prenom" placeholder="Nom & Prénom" required>
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn btn-success w-100">➕ Ajouter</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tableau -->
+    <div class="card p-3 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="m-0">Liste des utilisateurs</h6>
+            <div class="spinner-border spinner text-success" role="status"></div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped text-center align-middle" id="tableUsers">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code</th>
+                        <th>Nom & Prénom</th>
+                        <th class="d-none d-md-table-cell">Repas</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-between mt-3">
+            <button class="btn btn-secondary" id="prevPage">⬅️</button>
+            <span id="pageInfo"></span>
+            <button class="btn btn-secondary" id="nextPage">➡️</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let page = 1, totalPages = 1;
+
+function loadUsers() {
+    document.querySelector('.spinner').style.display = 'inline-block';
+    fetch(`/api/utilisateurs?page=${page}`)
+    .then(r => r.json())
+    .then(data => {
+        const tbody = document.querySelector("#tableUsers tbody");
+        tbody.innerHTML = "";
+        data.utilisateurs.forEach(u => {
+            const tr = document.createElement("tr");
+            tr.dataset.id = u[0];
+            tr.innerHTML = `
+                <td>${u[1]}</td>
+                <td contenteditable="true" class="editable">${u[2]}</td>
+                <td class="d-none d-md-table-cell">${u[3]}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm" onclick="updateUser(this)">✏️</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser(this)">🗑️</button>
+                </td>`;
+            tbody.appendChild(tr);
+        });
+        page = data.page;
+        totalPages = data.total_pages;
+        document.getElementById('pageInfo').innerText = `Page ${page}/${totalPages}`;
+        document.getElementById('prevPage').disabled = (page <= 1);
+        document.getElementById('nextPage').disabled = (page >= totalPages);
+    })
+    .finally(() => {
+        document.querySelector('.spinner').style.display = 'none';
+    });
+}
+
+function updateUser(btn) {
+    const row = btn.closest('tr');
+    const id = row.dataset.id;
+    const nom = row.querySelector('.editable').innerText.trim();
+
+    fetch('/update_user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `id=${id}&Nom_Prenom=${encodeURIComponent(nom)}`
+    })
+    .then(r => r.json())
+    .then(d => alert(d.success ? "✅ Modifié" : "❌ Erreur : " + d.error));
+}
+
+function deleteUser(btn) {
+    if (!confirm("Supprimer cet utilisateur ?")) return;
+    const row = btn.closest('tr');
+    const id = row.dataset.id;
+    fetch('/delete_user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `id=${id}`
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) row.remove();
+        else alert("❌ " + d.error);
+    });
+}
+
+document.getElementById('prevPage').addEventListener('click', () => { if (page > 1) { page--; loadUsers(); }});
+document.getElementById('nextPage').addEventListener('click', () => { if (page < totalPages) { page++; loadUsers(); }});
+loadUsers();
+</script>
+</body>
+</html>

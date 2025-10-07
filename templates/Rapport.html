@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu principal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0b8793, #360033);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 40px;
+        }
+        .btn {
+            display: block;
+            background: white;
+            color: #360033;
+            border: none;
+            padding: 15px 30px;
+            margin: 15px auto;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            width: 220px;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #ffcc00;
+            color: black;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Menu principal</h1>
+
+        <button class="btn" onclick="imprimerRapport('Journalier')">Rapport Journalier</button>
+        <button class="btn" onclick="imprimerRapport('Hebdomadaire')">Rapport Hebdomadaire</button>
+        <button class="btn" onclick="imprimerRapport('Mensuel')">Rapport Mensuel</button>
+    </div>
+
+    <script>
+        function imprimerRapport(type) {
+            fetch(`/Rapport_${type}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`🖨️ Rapport ${type} imprimé avec succès !`);
+                    } else {
+                        alert(`❌ Erreur impression : ${data.error || 'Inconnue'}`);
+                    }
+                })
+                .catch(err => alert(`⚠️ Erreur réseau : ${err}`));
+        }
+    </script>
+</body>
+</html>

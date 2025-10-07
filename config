@@ -1,0 +1,6 @@
+{
+  "Petit Déjeuner": { "id_repas": 1, "start": "06:00", "end": "09:30" },
+  "Déjeuner":       { "id_repas": 2, "start": "10:00", "end": "14:00" },
+  "Goûter":         { "id_repas": 3, "start": "14:10", "end": "17:30" },
+  "Dîner":          { "id_repas": 4, "start": "17:31", "end": "23:59" }
+}

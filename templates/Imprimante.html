@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Imprimante</title>
+</head>
+<body>
+    <h1>Page Imprimante</h1>
+    <button onclick="getPrinter()">Tester l’imprimante</button>
+    <p id="result"></p>
+
+    <script>
+    function getPrinter() {
+        fetch('/imprimante/get')
+          .then(response => response.text())
+          .then(data => {
+              document.getElementById('result').innerText = data;
+          });
+    }
+    </script>
+</body>
+</html>
