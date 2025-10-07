@@ -11,7 +11,8 @@ import sqlite3
 import locale
 import time
 import threading
-from Constantes import time_slots
+import subprocess
+
 
 DB_FILE = "raspberry_data.db"
 
@@ -193,6 +194,37 @@ def update_user():
     finally:
         conn.close()
     return {"success": success}
+@app.route('/api/utilisateurs')
+def api_utilisateurs():
+    import sqlite3
+    import math
+
+    page = int(request.args.get('page', 1))
+    per_page = 10
+    offset = (page - 1) * per_page
+
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+
+    # Exemple de table : id, code_utilisateur, nom_prenom, repas
+    cur.execute("SELECT COUNT(*) FROM utilisateurs")
+    total = cur.fetchone()[0]
+    total_pages = math.ceil(total / per_page) if total > 0 else 1
+
+    cur.execute("""
+        SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_repas
+        FROM utilisateurs
+        ORDER BY id DESC
+        LIMIT ? OFFSET ?
+    """, (per_page, offset))
+    rows = cur.fetchall()
+    conn.close()
+
+    return jsonify({
+        "utilisateurs": rows,
+        "page": page,
+        "total_pages": total_pages
+    })
 
 
 @app.route("/delete_user", methods=["POST"])
@@ -214,15 +246,26 @@ def delete_user():
 # --- Thread de capture ZKTeco ---
 def run_zk_listener(zk_device):
     from Cantine_Functions import process_attendance
-
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
     try:
-        locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
         zk_conn = zk_device.connect()
-        zk_conn.set_time(datetime.now())
-        print(f"🕒 Heure synchronisée : {datetime.now():%Y-%m-%d %H:%M:%S}")
+
+        # --- Lecture de l'heure sur la pointeuse
+        zk_time = zk_conn.get_time()
+        print(f"🕒 Heure de la pointeuse : {zk_time:%Y-%m-%d %H:%M:%S}")
+
+        # --- Conversion de la date au format Linux
+        date_str = zk_time.strftime('%Y-%m-%d %H:%M:%S')
+
+        # --- Mise à jour de l’heure du Raspberry Pi
+        # ⚠️ Nécessite les droits sudo
+        subprocess.run(["sudo", "date", "-s", date_str], check=True)
+
+        print(f"✅ Heure du Raspberry Pi synchronisée avec la pointeuse ({date_str})")
 
         users = zk_conn.get_users()
         user_dict = {user.user_id: user.name for user in users}
+        print(user_dict)
         print("✅ Système prêt. En attente de pointages...")
 
         while True:
@@ -246,7 +289,27 @@ def run_zk_listener(zk_device):
         except:
             pass
 
+def monitor_usb():
+    """
+    Surveille la présence de la clé USB et tente de la remonter automatiquement
+    lorsqu'elle est retirée puis réinsérée.
+    """
+    etat_precedent = None
+    while True:
+        try:
+            present = usb_presente()
+            if present and not etat_precedent:
+                print("🔌 Clé USB détectée → tentative de montage...")
+                detect_and_mount_usb()
 
+            elif not present and etat_precedent:
+                print("❌ Clé USB retirée.")
+
+            etat_precedent = present
+        except Exception as e:
+            print(f"⚠️ Erreur dans la surveillance USB : {e}")
+
+        time.sleep(5)  # Vérifie toutes les 5 secondes
 # --- Lancement principal ---
 if __name__ == '__main__':
     print("🚀 Initialisation de la base de données...")
@@ -256,7 +319,8 @@ if __name__ == '__main__':
     mount_point = detect_and_mount_usb()
     if not mount_point:
         print("⚠️ Impossible de détecter ou de monter la clé USB.")
-
+    else:
+        print("la clé USB OK.")
     zk_device = ZK('192.168.100.201', port=4370)
     label, slot_id = get_time_slot(datetime.now())
     print(label, slot_id)
@@ -277,5 +341,9 @@ if __name__ == '__main__':
 
     listener_thread = threading.Thread(target=run_zk_listener, args=(zk_device,), daemon=True)
     listener_thread.start()
+    #trhreading pour la cle USB
+    usb_thread = threading.Thread(target=monitor_usb, daemon=True)
+    usb_thread.start()
+    print("🧩 Thread de surveillance USB lancé.")
 
     app.run(host="0.0.0.0", port=5013, debug=False)

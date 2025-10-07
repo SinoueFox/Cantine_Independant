@@ -368,7 +368,6 @@ def print_daily_report_excel_usb(type_rapport, mount_point):
     Génère un rapport de consommation et l'enregistre sur la clé USB.
     Corrigé pour enregistrer le fichier en dehors de la boucle.
     """
-    detect_and_mount_usb()
     print(type_rapport),print("pp"),print(mount_point)
     print("Début de l'écriture du rapport Excel...")
     conn = sqlite3.connect(DB_PATH)
@@ -404,7 +403,7 @@ def print_daily_report_excel_usb(type_rapport, mount_point):
                           Consomation.Date_Consomation,
                           Utilisateurs.Nom_Prenom
                    FROM Consomation
-                            INNER JOIN Utilisateurs ON Utilisateurs.id = Consomation.id_utilisateur
+                            INNER JOIN Utilisateurs ON Utilisateurs.Code_Utilisateur = Consomation.id_utilisateur
                    WHERE Date_Consomation BETWEEN ? AND ?
                    """, (
                        date_debut.strftime("%Y-%m-%d %H:%M:%S"),
