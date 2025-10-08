@@ -363,64 +363,174 @@ def test_printer():
         print("⛔ Aucune imprimante détectée.")
 
 
+from openpyxl import Workbook
+from datetime import datetime, timedelta, time as dt_time
+import sqlite3, os
+
+# def print_daily_report_excel_usb(type_rapport, mount_point):
+#     """
+#     Génère un rapport de consommation complet et un résumé (hebdomadaire ou mensuel) sur la clé USB.
+#     """
+#     print(f"Type rapport: {type_rapport} | Destination: {mount_point}")
+#
+#     conn = sqlite3.connect(DB_PATH)
+#     cursor = conn.cursor()
+#
+#     # Détermination de la période et du titre
+#     if type_rapport == 1:  # Rapport journalier
+#         date_jour = datetime.now().date()
+#         date_debut = datetime.combine(date_jour, dt_time.min)
+#         date_fin = datetime.combine(date_jour, dt_time.max)
+#         report_title = f"Consommations_Journalieres_{date_jour.strftime('%Y-%m-%d')}"
+#         resume_title = None
+#
+#     elif type_rapport == 2:  # Rapport hebdomadaire
+#         today = datetime.now().date()
+#         start_of_week = today - timedelta(days=today.weekday() + 1)
+#         date_debut = datetime.combine(start_of_week, dt_time.min)
+#         date_fin = datetime.combine(today, dt_time.max)
+#         report_title = f"Consommations_Hebdomadaires_{start_of_week.strftime('%Y-%m-%d')}_au_{today.strftime('%Y-%m-%d')}"
+#         resume_title = "resume_hebdomadaire.xlsx"
+#
+#     elif type_rapport == 3:  # Rapport mensuel
+#         today = datetime.now().date()
+#         start_of_month = today.replace(day=1)
+#         date_debut = datetime.combine(start_of_month, dt_time.min)
+#         date_fin = datetime.combine(today, dt_time.max)
+#         report_title = f"Consommations_Mensuelles_{start_of_month.strftime('%Y-%m-%d')}_au_{today.strftime('%Y-%m-%d')}"
+#         resume_title = "resume_mensuel.xlsx"
+#     else:
+#         print("⚠️ Type de rapport non valide.")
+#         return
+#
+#     # 🔹 Récupération des données de consommation
+#     cursor.execute("""
+#         SELECT Consomation.TYPE_REPAS_STR,
+#                Consomation.id_utilisateur,
+#                Consomation.Date_Consomation,
+#                Utilisateurs.Nom_Prenom
+#         FROM Consomation
+#         INNER JOIN Utilisateurs ON Utilisateurs.Code_Utilisateur = Consomation.id_utilisateur
+#         WHERE Date_Consomation BETWEEN ? AND ?
+#     """, (date_debut.strftime("%Y-%m-%d %H:%M:%S"),
+#           date_fin.strftime("%Y-%m-%d %H:%M:%S")))
+#
+#     results = cursor.fetchall()
+#     conn.close()
+#
+#     if not results:
+#         print("Aucune donnée de consommation pour la période sélectionnée.")
+#         return
+#
+#     # 🔸 1️⃣ Rapport complet
+#     wb = Workbook()
+#     ws = wb.active
+#     ws.title = "Consommations"
+#     ws.append(["Type Repas", "ID Utilisateur", "Date Consommation", "Nom Prénom"])
+#     for row in results:
+#         ws.append(row)
+#
+#     try:
+#         nom_fichier = f"{report_title}.xlsx"
+#         chemin_fichier = os.path.join(mount_point, nom_fichier)
+#         wb.save(chemin_fichier)
+#         print(f"✅ Rapport détaillé enregistré : {chemin_fichier}")
+#     except Exception as e:
+#         print(f"❌ Erreur lors de l'enregistrement du rapport complet : {e}")
+#         return
+#
+#     # 🔸 2️⃣ Rapport résumé (si hebdomadaire ou mensuel)
+#     if resume_title:
+#         from collections import Counter
+#
+#         # Compter les consommations par utilisateur
+#         consommations_par_nom = Counter([row[3] for row in results])  # row[3] = Nom Prénom
+#
+#         wb_resume = Workbook()
+#         ws_resume = wb_resume.active
+#         ws_resume.title = "Résumé Consommations"
+#         ws_resume.append(["Nom Prénom", "Total Consommations"])
+#
+#         for nom, total in consommations_par_nom.items():
+#             ws_resume.append([nom, total])
+#
+#         try:
+#             chemin_resume = os.path.join(mount_point, resume_title)
+#             wb_resume.save(chemin_resume)
+#             print(f"✅ Fichier résumé enregistré : {chemin_resume}")
+#         except Exception as e:
+#             print(f"❌ Erreur lors de l'enregistrement du résumé : {e}")
 def print_daily_report_excel_usb(type_rapport, mount_point):
     """
-    Génère un rapport de consommation et l'enregistre sur la clé USB.
-    Corrigé pour enregistrer le fichier en dehors de la boucle.
+    Génère un rapport de consommation (journalier, hebdomadaire, mensuel)
+    et crée en plus un rapport résumé (par utilisateur avec total)
+    pour les rapports hebdomadaires et mensuels.
     """
-    print(type_rapport),print("pp"),print(mount_point)
+    import os
+    import sqlite3
+    from datetime import datetime, timedelta, time as dt_time
+    from openpyxl import Workbook
+
     print("Début de l'écriture du rapport Excel...")
+
     conn = sqlite3.connect(DB_PATH)
+
     cursor = conn.cursor()
-    print(type_rapport)
+    print("indoce1")
+    # === Détermination de la période selon le type de rapport ===
     if type_rapport == 1:
-        print("rapport 1")
         date_jour = datetime.now().date()
         date_debut = datetime.combine(date_jour, dt_time.min)
         date_fin = datetime.combine(date_jour, dt_time.max)
         report_title = f"Consommations_Journalieres_{date_jour.strftime('%Y-%m-%d')}"
     elif type_rapport == 2:
-        print("rapport 2")
+        print("indoce2")
         today = datetime.now().date()
         start_of_week = today - timedelta(days=today.weekday() + 1)
         date_debut = datetime.combine(start_of_week, dt_time.min)
         date_fin = datetime.combine(today, dt_time.max)
         report_title = f"Consommations_Hebdomadaires_{start_of_week.strftime('%Y-%m-%d')}_au_{today.strftime('%Y-%m-%d')}"
+        print("date debut" + date_debut.strftime('%Y-%m-%d'))
+        print("date fin" + date_fin.strftime('%Y-%m-%d'))
     elif type_rapport == 3:
-        print("rapport 3")
         today = datetime.now().date()
         start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         date_debut = datetime.combine(start_of_month, dt_time.min)
         date_fin = datetime.combine(today, dt_time.max)
-        report_title = f"Consommations_mensuelle_{start_of_month.strftime('%Y-%m-%d')}_au_{today.strftime('%Y-%m-%d')}"
-    else:
-        log_error("Type de rapport non valide.")
-        return
+        print("date debut" + date_debut.strftime('%Y-%m-%d'))
+        print("date fin" + date_fin.strftime('%Y-%m-%d'))
 
-    cursor.execute("""
-                   SELECT Consomation.TYPE_REPAS_STR,
-                          Consomation.id_utilisateur,
-                          Consomation.Date_Consomation,
-                          Utilisateurs.Nom_Prenom
-                   FROM Consomation
-                            INNER JOIN Utilisateurs ON Utilisateurs.Code_Utilisateur = Consomation.id_utilisateur
-                   WHERE Date_Consomation BETWEEN ? AND ?
-                   """, (
-                       date_debut.strftime("%Y-%m-%d %H:%M:%S"),
-                       date_fin.strftime("%Y-%m-%d %H:%M:%S")
-                   ))
+        report_title = f"Consommations_Mensuelles_{start_of_month.strftime('%Y-%m-%d')}_au_{today.strftime('%Y-%m-%d')}"
+    else:
+        print("❌ Type de rapport non valide.")
+        return
+    # 🔹 Récupération des données de consommation
+        cursor.execute("""
+            SELECT Consomation.TYPE_REPAS_STR,
+                   Consomation.id_utilisateur,
+                   Consomation.Date_Consomation,
+                   Utilisateurs.Nom_Prenom,
+                   Utilisateurs.Code_Utilisateur
+            FROM Consomation
+            INNER JOIN Utilisateurs ON Utilisateurs.Code_Utilisateur = Consomation.id_utilisateur
+            WHERE Date_Consomation BETWEEN ? AND ?
+        """, (date_debut.strftime("%Y-%m-%d %H:%M:%S"),
+              date_fin.strftime("%Y-%m-%d %H:%M:%S")))
+
+    print("indoce3")
     results = cursor.fetchall()
     conn.close()
 
     if not results:
-        print("Aucune donnée de consommation pour la période sélectionnée. Le rapport Excel ne sera pas créé.")
+        print("⚠️ Aucune donnée trouvée pour la période spécifiée.")
         return
-    print("avant wb")
+
+    # === Rapport complet ===
     wb = Workbook()
     ws = wb.active
     ws.title = "Consommations"
-    print("apres titre wb")
-    ws.append(["Type Repas", "ID Utilisateur", "Date Consommation", "Nom Prénom"])
+    ws.append(["Type Repas", "ID Utilisateur", "Date Consommation", "Nom Prénom", "Code Employé"])
+
     for row in results:
         ws.append(row)
 
@@ -428,7 +538,36 @@ def print_daily_report_excel_usb(type_rapport, mount_point):
         nom_fichier = f"{report_title}.xlsx"
         chemin_fichier = os.path.join(mount_point, nom_fichier)
         wb.save(chemin_fichier)
-        print(f"✅ Rapport enregistré sur la clé USB : {chemin_fichier}")
+        print(f"✅ Rapport complet enregistré : {chemin_fichier}")
     except Exception as e:
-        log_error(f"Erreur lors de l'enregistrement du rapport Excel : {e}")
-        print(f"❌ Erreur lors de l'enregistrement : {e}")
+        print(f"❌ Erreur lors de l'enregistrement du rapport complet : {e}")
+
+    # === Rapport résumé pour les hebdo et mensuels ===
+    if type_rapport in [2, 3]:
+        resume_wb = Workbook()
+        resume_ws = resume_wb.active
+        resume_ws.title = "Résumé"
+        resume_ws.append(["Nom Prénom", "Code Employé", "Total Consommations"])
+
+        # Comptage par utilisateur
+        from collections import defaultdict
+        consommation_par_utilisateur = defaultdict(lambda: {"nom": "", "code": "", "total": 0})
+
+        for (_, id_utilisateur, _, nom_prenom, code_employe) in results:
+            consommation_par_utilisateur[id_utilisateur]["nom"] = nom_prenom
+            consommation_par_utilisateur[id_utilisateur]["code"] = code_employe
+            consommation_par_utilisateur[id_utilisateur]["total"] += 1
+
+        for data in consommation_par_utilisateur.values():
+            resume_ws.append([data["nom"], data["code"], data["total"]])
+
+        try:
+            if type_rapport == 2:
+                resume_nom = "resumé_hebdomadaire.xlsx"
+            else:
+                resume_nom = "resumé_mensuel.xlsx"
+            resume_chemin = os.path.join(mount_point, resume_nom)
+            resume_wb.save(resume_chemin)
+            print(f"✅ Rapport résumé enregistré : {resume_chemin}")
+        except Exception as e:
+            print(f"❌ Erreur lors de l'enregistrement du résumé : {e}")

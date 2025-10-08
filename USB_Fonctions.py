@@ -115,35 +115,7 @@ def mount_usb_manuellement():
         log_error(f"❌ Erreur inattendue lors du montage manuel : {e}")
         print(f"❌ Erreur inattendue lors du montage manuel : {e}")
         return False
-# def detect_and_mount_usb():
-#     try:
-#         # Liste les périphériques montables
-#         result = subprocess.check_output("lsblk -o NAME,MOUNTPOINT,TYPE | grep 'part'", shell=True)
-#         lines = result.decode().strip().split('\n')
-#
-#         for line in lines:
-#             parts = line.split()
-#             if len(parts) >= 2 and parts[2] == 'part':
-#                 device = parts[0]
-#                 mount_point = parts[1] if len(parts) > 1 else ""
-#
-#                 if mount_point == "":
-#                     # Crée un dossier de montage si non existant
-#                     mount_point = f"/media/{device}"
-#                     os.makedirs(mount_point, exist_ok=True)
-#                     subprocess.run(["sudo", "mount", f"/dev/{device}", mount_point])
-#                     print(f"✅ Clé USB montée sur {mount_point}")
-#                     return mount_point
-#                 else:
-#                     print(f"✅ Clé USB déjà montée sur {mount_point}")
-#                     return mount_point
-#
-#         print("❌ Aucune clé USB détectée.")
-#         return None
-#
-#     except Exception as e:
-#         print(f"⚠️ Erreur de détection USB : {e}")
-#         return None
+
 def detect_and_mount_usb():
     """
     Détecte et monte la clé USB sur /mnt/usb_cle.

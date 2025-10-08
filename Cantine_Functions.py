@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import pandas as pd
-from datetime import   datetime
+from datetime import datetime
 from Printer_Function import print_ticket,print_weekly_summary,print_daily_summary3,print_month_summary,print_daily_report_excel_usb
 from Constantes import time_slots
 from USB_Fonctions import detect_and_mount_usb,mount_usb_manuellement,detect_and_check_usb,usb_presente
@@ -264,9 +264,8 @@ def Import_from_Excel():
     finally:
         if conn:
             conn.disconnect()
-            print("🔌 Déconnexion de la pointeuse.")
-
-    return
+            print("✅ Importation terminée avec succès.")
+            return True
 
 
 

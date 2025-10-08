@@ -7,61 +7,76 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #0b8793, #360033);
-            color: white;
+            background-color: #f2f2f2;
+            color: #333;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
         }
+
         .container {
             text-align: center;
+            background: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 350px;
         }
+
         h1 {
-            margin-bottom: 40px;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
         }
+
         .btn {
             display: block;
-            background: white;
-            color: #360033;
+            width: 100%;
+            background-color: #e0e0e0;
+            color: #000;
             border: none;
-            padding: 15px 30px;
-            margin: 15px auto;
-            border-radius: 10px;
-            font-size: 20px;
+            padding: 14px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-size: 1rem;
             cursor: pointer;
-            width: 200px;
-            transition: all 0.3s;
+            transition: background 0.2s ease;
         }
+
         .btn:hover {
-            background: #ffcc00;
-            color: black;
-            transform: scale(1.05);
+            background-color: #d0d0d0;
+        }
+
+        .btn:active {
+            background-color: #bcbcbc;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Menu principal</h1>
-        <button class="btn" onclick="location.href='/pointeuse'">Pointeuse</button>
-        <button class="btn" onclick="location.href='/imprimante'">Imprimante</button>
-        <button class="btn" onclick="location.href='/rapport'">Rapport</button>
-        <button class="btn" onclick="location.href='/Configuration'">Configuration</button>
-        <button class="btn" onclick="ImporterExcel()">Importer Utilisateurs Excel</button>
-        <button class="btn" onclick="location.href='/Utilisateur'">Utilisateur</button>
+        <button class="btn" onclick="location.href='/rapport'">📊 Rapport</button>
+        <button class="btn" onclick="ImporterExcel()">📥 Importer Utilisateurs Excel</button>
+        <button class="btn" onclick="location.href='/Utilisateur'">👥 Utilisateurs</button>
     </div>
+
+    <script>
+        function ImporterExcel() {
+            fetch('/Import_Excel')
+            .then(response => response.text())
+            .then(data => {
+                if (data.includes("succès")) {
+                    alert("✅ " + data);
+                } else {
+                    alert("❌ " + data);
+                }
+            })
+            .catch(error => {
+                alert("⚠️ Erreur de communication : " + error);
+            });
+        }
+    </script>
 </body>
-<script>
-function ImporterExcel() {
-    fetch('/Import_Excel')
-    .then(response => response.text())
-    .then(data => {
-        alert("✅ Importation terminée avec succès !");
-    })
-    .catch(error => {
-        alert("❌ Erreur lors de l'importation : " + error);
-    });
-}
-</script>
 </html>

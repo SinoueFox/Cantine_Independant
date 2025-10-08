@@ -37,6 +37,7 @@ def get_all_users():
     cur.execute("SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_Repas FROM Utilisateurs")
     users = cur.fetchall()
     conn.close()
+    print(users)
     return users
 
 
@@ -74,8 +75,14 @@ def configuration():
 
 @app.route('/Import_Excel')
 def import_excel():
-    Import_from_Excel()
-    return "Importation terminée avec succès !"
+    if Import_from_Excel() :
+        print('OK')
+        return "Importation terminée avec succès !"
+
+    else :
+        print('Pas OK')
+        return "Importation Echoue !"
+
 
 
 @app.route('/Rapport_Journalier', methods=["POST"])
@@ -179,21 +186,74 @@ def ajouter_utilisateur():
     return redirect("/Utilisateur")
 
 
+from zk import ZK, const
+
+from zk import ZK, const
+
 @app.route("/update_user", methods=["POST"])
 def update_user():
     user_id = request.form["id"]
     nom = request.form["Nom_Prenom"]
+
+    # 1️⃣ Mise à jour locale SQLite
     try:
         conn = sqlite3.connect(DB_FILE)
         cur = conn.cursor()
         cur.execute("UPDATE Utilisateurs SET Nom_Prenom = ? WHERE id = ?", (nom, user_id))
         conn.commit()
         success = cur.rowcount > 0
+        cur.execute("SELECT Code_Utilisateur FROM Utilisateurs WHERE id = ?", (user_id,))
+        row = cur.fetchone()
+        code_employe = row[0] if row else None
     except sqlite3.Error as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": f"Erreur SQLite : {e}"}
     finally:
         conn.close()
-    return {"success": success}
+
+    if not success:
+        return {"success": False, "error": "Utilisateur non trouvé dans la base locale."}
+
+    # 2️⃣ Mise à jour sur la pointeuse ZKTeco
+    try:
+        zk = ZK("192.168.100.201", port=4370, timeout=5)
+        conn = zk.connect()
+        conn.disable_device()
+        print("indice 1")
+        users = conn.get_users()
+        print(users)
+        print("user_id =" + user_id)
+        user_found = None
+        user_found = next((u for u in users if str(u.user_id) == str(code_employe)), None)
+
+        if user_found:
+            print(f"Utilisateur trouvé : UID={user_found.uid}, Nom={user_found.name}")
+        else:
+            print("Utilisateur non trouvé")
+
+        if user_found:
+            print("user found")
+            conn.set_user(
+                uid=int(user_found.uid),
+                name=nom,
+                privilege=user_found.privilege,
+                password=user_found.password,
+                group_id=user_found.group_id,
+                user_id=user_found.user_id
+            )
+            result = True
+        else:
+            result = False
+
+        conn.enable_device()
+        conn.disconnect()
+
+    except Exception as e:
+        return {"success": False, "error": f"Erreur pointeuse : {e}"}
+
+    # 3️⃣ Réponse JSON
+    return {"success": result}
+
+
 @app.route('/api/utilisateurs')
 def api_utilisateurs():
     import sqlite3
