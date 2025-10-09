@@ -12,10 +12,16 @@ import locale
 import time
 import threading
 import subprocess
+import os
 
-
+CWD = os.path.dirname(os.path.realpath(__file__))
 DB_FILE = "raspberry_data.db"
+LOG_PATH = os.path.join(CWD, "errors.log") # <-- AJOUTEZ CETTE LIGNE
 
+
+def log_error(message):
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+         f.write(f"{datetime.now().isoformat()} - {message}\n")
 app = Flask(__name__)
 app.secret_key = "secret-key-123"  # Nécessaire pour afficher les messages flash
 
@@ -95,6 +101,7 @@ def rapport_journalier():
             raise Exception("Imprimante non détectée.")
     except Exception as e:
         print(f"Erreur impression journalière : {e}")
+        log_error(f"Erreur Rapport_Journalier : {e}")
         return jsonify(success=False, error=str(e))
 
 
@@ -406,4 +413,4 @@ if __name__ == '__main__':
     usb_thread.start()
     print("🧩 Thread de surveillance USB lancé.")
 
-    app.run(host="0.0.0.0", port=5013, debug=False)
+    app.run(host="0.0.0.0", port=5010, debug=False)
