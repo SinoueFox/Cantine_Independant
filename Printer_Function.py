@@ -1,5 +1,6 @@
 import usb.core
 import usb.util
+import platform
 import os
 import sqlite3
 from escpos.printer import Usb
@@ -7,6 +8,14 @@ from datetime import datetime,time as dt_time,timedelta
 from USB_Fonctions import detect_and_mount_usb,mount_usb_manuellement,detect_and_check_usb,usb_presente
 from Fonctions_BDD import Ajouter_Consomation_SQLITE
 from openpyxl import Workbook
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+import io, os
+from datetime import datetime, time as dt_time, timedelta
+import sqlite3
 
 
 # Créneaux horaires
@@ -79,15 +88,15 @@ def print_daily_summary3(p):
         p.text(f"{'TOTAL':<20}{total_tickets:>5}\n")
         print("indice 5")
         #  Ecriture fichier excel
-        if usb_presente():
-            mount_point = detect_and_check_usb()
-            if mount_point:  # Si la clé est montée et valide...
-                print_daily_report_excel_usb(1, mount_point)
-                p.text("\n")
-                p.set(align='center')
-                p.text("Rapport copié sur clé USB !\n")
-            else:
-                print("⚠️ Rapport non sauvegardé : clé USB absente ou non montée.")
+        # if usb_presente():
+        #     mount_point = detect_and_check_usb()
+        #     if mount_point:  # Si la clé est montée et valide...
+        #         print_daily_report_excel_usb(1, mount_point)
+        #         p.text("\n")
+        #         p.set(align='center')
+        #         p.text("Rapport copié sur clé USB !\n")
+        #     else:
+        #         print("⚠️ Rapport non sauvegardé : clé USB absente ou non montée.")
         conn.close()
         p.cut()
     except Exception as e:
@@ -225,24 +234,40 @@ def print_month_summary(p):
                 p.text("=" * 32 + "\n")
                 p.text(f"Total semaine: {total_week}\n")
                 #  Ecriture fichier excel
-                if usb_presente():
-                    mount_point = detect_and_check_usb()
-                    if mount_point:  # Si la clé est montée et valide...
-                        print_daily_report_excel_usb(2, mount_point)
-                        p.text("\n")
-                        p.set(align='center')
-                        p.text("Rapport copié sur clé USB !\n")
-                    else:
-                        print("⚠️ Rapport non sauvegardé : clé USB absente ou non montée.")
+            #     if usb_presente():
+            #         mount_point = detect_and_check_usb()
+            #         if mount_point:  # Si la clé est montée et valide...
+            #             print_daily_report_excel_usb(2, mount_point)
+            #             p.text("\n")
+            #             p.set(align='center')
+            #             p.text("Rapport copié sur clé USB !\n")
+            #         else:
+            #             print("⚠️ Rapport non sauvegardé : clé USB absente ou non montée.")
                 conn.close()
                 p.cut()
-            except Exception as e:
-                log_error(f"Erreur lors de l'impression du résumé journalier : {e}")
+            # except Exception as e:
+            #     log_error(f"Erreur lors de l'impression du résumé journalier : {e}")
 
 
 
             except Exception as e:
                 log_error(f"Erreur lors de l'impression du résumé hebdomadaire : {e}")
+
+def copy_usb_report(p,type_report):
+    try :
+        if usb_presente():
+            mount_point = detect_and_check_usb()
+            if mount_point:  # Si la clé est montée et valide...
+              print_daily_report_excel_usb(type_report, mount_point,0)
+              p.text("\n")
+              p.set(align='center')
+              p.text("Rapport copié sur clé USB !\n")
+        else:
+            print("⚠️ Rapport non sauvegardé : clé USB absente ou non montée.")
+        p.cut()
+
+    except Exception as e:
+        log_error(f"Erreur lors de l'impression du résumé journalier : {e}")
 
 def print_ticket(user_dict, att, slot_label, printer, type_repas, time_conso, exempt):
     """Imprime un ticket de consommation"""
@@ -322,15 +347,15 @@ def print_weekly_summary(p):
         p.text("=" * 32 + "\n")
         p.text(f"Total semaine: {total_week}\n")
         #  Ecriture fichier excel
-        if usb_presente():
-            mount_point = detect_and_check_usb()
-            if mount_point:  # Si la clé est montée et valide...
-                print_daily_report_excel_usb(2, mount_point)
-                p.text("\n")
-                p.set(align='center')
-                p.text("Rapport copié sur clé USB !\n")
-            else:
-                print("⚠️ Rapport non sauvegardé : clé USB absente ou non montée.")
+        # if usb_presente():
+        #     mount_point = detect_and_check_usb()
+        #     if mount_point:  # Si la clé est montée et valide...
+        #         print_daily_report_excel_usb(2, mount_point)
+        #         p.text("\n")
+        #         p.set(align='center')
+        #         p.text("Rapport copié sur clé USB !\n")
+        #     else:
+        #         print("⚠️ Rapport non sauvegardé : clé USB absente ou non montée.")
         conn.close()
         p.cut()
     except Exception as e:
@@ -460,32 +485,37 @@ import sqlite3, os
 #             print(f"✅ Fichier résumé enregistré : {chemin_resume}")
 #         except Exception as e:
 #             print(f"❌ Erreur lors de l'enregistrement du résumé : {e}")
-def print_daily_report_excel_usb(type_rapport, mount_point):
+import io
+import os
+import sqlite3
+from datetime import datetime, timedelta, time as dt_time
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side
+
+def print_daily_report_excel_usb(type_rapport, mount_point, download):
     """
-    Génère un rapport Excel résumé (journalier, hebdomadaire, mensuel)
+    Génère un rapport Excel résumé (journalier = 1, hebdomadaire = 2, mensuel = 3)
     à partir de la base SQLite locale.
+
+    - type_rapport : 1, 2 ou 3
+    - mount_point : chemin de sauvegarde (clé USB ou chemin personnalisé)
+    - download : 1 = retourne un buffer mémoire pour téléchargement
+                 0 = sauvegarde sur disque dur dans mount_point
+
+    Retourne :
+    - Si download == 1 -> (buffer, filename)
+    - Sinon -> (None, chemin_fichier)
     """
-    import os
-    import sqlite3
-    from datetime import datetime, timedelta, time as dt_time
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, Alignment, Border, Side
 
     print("Début génération du rapport Excel résumé...")
-    # --- Connexion à la base de données ---
-    conn = sqlite3.connect(DB_PATH)
-    print(DB_PATH)
-    cursor = conn.cursor()
-    print('indice 2')
-
     now = datetime.now()
-    print('indice 3')
+
     # --- Définition des bornes temporelles selon le type de rapport ---
     if type_rapport == 1:
         date_debut = datetime.combine(now.date(), dt_time.min)
         date_fin = datetime.combine(now.date(), dt_time.max)
         titre = f"Resume des consommations du {date_debut.strftime('%d/%m/%Y')}"
-        fichier_sortie = os.path.join(mount_point, f"resume_journalier_{now.strftime('%Y%m%d')}.xlsx")
+        nom_fichier = f"resume_journalier_{now.strftime('%Y%m%d')}.xlsx"
 
     elif type_rapport == 2:
         start_of_week = now - timedelta(days=now.weekday())
@@ -493,24 +523,25 @@ def print_daily_report_excel_usb(type_rapport, mount_point):
         date_debut = datetime.combine(start_of_week.date(), dt_time.min)
         date_fin = datetime.combine(end_of_week.date(), dt_time.max)
         titre = f"Resume des consommations du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}"
-        fichier_sortie = os.path.join(mount_point, f"resume_hebdomadaire_{now.strftime('%Y%m%d')}.xlsx")
+        nom_fichier = f"resume_hebdomadaire_{now.strftime('%Y%m%d')}.xlsx"
 
     elif type_rapport == 3:
         start_of_month = now.replace(day=1)
         date_debut = datetime.combine(start_of_month.date(), dt_time.min)
         date_fin = datetime.combine(now.date(), dt_time.max)
         titre = f"Resume des consommations du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}"
-        fichier_sortie = os.path.join(mount_point, f"resume_mensuel_{now.strftime('%Y%m%d')}.xlsx")
-
+        nom_fichier = f"resume_mensuel_{now.strftime('%Y%m%d')}.xlsx"
     else:
-        print("❌ Type de rapport non valide (doit être 'journalier', 'hebdomadaire' ou 'mensuel').")
-        return
+        print("❌ Type de rapport non valide")
+        return None, None
 
     print(f"📅 Date début : {date_debut}")
     print(f"📅 Date fin   : {date_fin}")
 
-    # --- Récupération des données depuis la base ---
+    # --- Récupération des données ---
     try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
         cursor.execute("""
             SELECT Utilisateurs.Code_Utilisateur,
                    Utilisateurs.Nom_Prenom,
@@ -525,72 +556,53 @@ def print_daily_report_excel_usb(type_rapport, mount_point):
             date_fin.strftime("%Y-%m-%d %H:%M:%S")
         ))
         donnees = cursor.fetchall()
+        conn.close()
         print(f"✅ {len(donnees)} lignes récupérées.")
     except Exception as e:
         print(f"❌ Erreur SQL : {e}")
-        donnees = []
+        return None, None
 
-    conn.close()
-
-    # --- Création du classeur Excel ---
+    # --- Création du fichier Excel ---
     wb = Workbook()
     ws = wb.active
     ws.title = "Resume"
 
-    # --- Styles ---
     font_titre = Font(size=14, bold=True)
     font_entete = Font(bold=True)
-    border_gray = Border(
-        left=Side(style="thin", color="CCCCCC"),
-        right=Side(style="thin", color="CCCCCC"),
-        top=Side(style="thin", color="CCCCCC"),
-        bottom=Side(style="thin", color="CCCCCC")
-    )
+    border_gray = Border(left=Side(style="thin", color="CCCCCC"),
+                         right=Side(style="thin", color="CCCCCC"),
+                         top=Side(style="thin", color="CCCCCC"),
+                         bottom=Side(style="thin", color="CCCCCC"))
     align_left = Alignment(horizontal="left", vertical="center")
     align_center = Alignment(horizontal="center", vertical="center")
 
-    # --- Titre ---
     ws.merge_cells("A1:C1")
     ws["A1"] = titre
     ws["A1"].font = font_titre
-    ws["A1"].alignment = align_left  # aligné à gauche
+    ws["A1"].alignment = align_left
 
-    # --- Lignes vides après le titre ---
-    ws.append([])
-    ws.append([])
-    ws.append([])
+    ws.append([]); ws.append([]); ws.append([])
 
-    # --- En-têtes ---
     headers = ["Code Employe", "Nom et Prenom", "Quantite"]
     ws.append(headers)
-
-    for col, header in enumerate(headers, 1):
+    for col, _ in enumerate(headers, 1):
         cell = ws.cell(row=ws.max_row, column=col)
         cell.font = font_entete
         cell.alignment = align_center
         cell.border = border_gray
 
-    # --- Lignes de données ---
     for code, nom_prenom, total in donnees:
         ws.append([code, nom_prenom, total])
 
-    # --- Style des cellules de données ---
     for row in ws.iter_rows(min_row=5, max_row=ws.max_row, min_col=1, max_col=3):
         for idx, cell in enumerate(row, start=1):
             cell.border = border_gray
-            if idx == 1:  # Code Employe
-                cell.alignment = align_center
-            elif idx == 2:  # Nom et Prenom
-                cell.alignment = align_left
-            elif idx == 3:  # Quantite
-                cell.alignment = align_center
+            cell.alignment = align_center if idx != 2 else align_left
 
-    # --- Largeur des colonnes ---
     ws.column_dimensions["A"].width = 15
     ws.column_dimensions["B"].width = 35
     ws.column_dimensions["C"].width = 15
 
-    # --- Ligne du total ---
     last_data_row = ws.max_row
     total_row = last_data_row + 2
     ws[f"B{total_row}"] = "Total consommations :"
@@ -599,12 +611,262 @@ def print_daily_report_excel_usb(type_rapport, mount_point):
     ws[f"C{total_row}"].font = font_entete
     ws[f"C{total_row}"].alignment = align_center
 
-    # --- Sauvegarde du fichier ---
+    # --- Téléchargement (buffer) ou sauvegarde sur disque ---
+    if download == 1:
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        return buffer, nom_fichier
+    else:
+        if not os.path.exists(mount_point):
+            os.makedirs(mount_point, exist_ok=True)
+        filepath = os.path.join(mount_point, nom_fichier)
+        wb.save(filepath)
+        return None, filepath
+def print_daily_report_pdf_usb(type_rapport, mount_point, download):
+    """
+    Génère un rapport PDF résumé (journalier = 1, hebdomadaire = 2, mensuel = 3)
+    - download = 1 -> retourne buffer + filename
+    - download = 0 -> enregistre sur disque dans mount_point
+    """
+
+    print("Début génération du rapport PDF résumé...")
+    now = datetime.now()
+
+    # --- Définition des bornes de date et nom fichier ---
+    if type_rapport == 1:
+        date_debut = datetime.combine(now.date(), dt_time.min)
+        date_fin = datetime.combine(now.date(), dt_time.max)
+        titre = f"Résumé des consommations du {date_debut.strftime('%d/%m/%Y')}"
+        nom_fichier = f"resume_journalier_{now.strftime('%Y%m%d')}.pdf"
+
+    elif type_rapport == 2:
+        start_of_week = now - timedelta(days=now.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        date_debut = datetime.combine(start_of_week.date(), dt_time.min)
+        date_fin = datetime.combine(end_of_week.date(), dt_time.max)
+        titre = f"Résumé des consommations du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}"
+        nom_fichier = f"resume_hebdomadaire_{now.strftime('%Y%m%d')}.pdf"
+
+    elif type_rapport == 3:
+        start_of_month = now.replace(day=1)
+        date_debut = datetime.combine(start_of_month.date(), dt_time.min)
+        date_fin = datetime.combine(now.date(), dt_time.max)
+        titre = f"Résumé des consommations du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}"
+        nom_fichier = f"resume_mensuel_{now.strftime('%Y%m%d')}.pdf"
+
+    else:
+        print("❌ Type de rapport non valide")
+        return None, None
+
+    # --- Récupération des données ---
     try:
-        wb.save(fichier_sortie)
-        print(f"✅ Rapport Excel résumé sauvegardé sur {fichier_sortie}")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT Utilisateurs.Code_Utilisateur,
+                   Utilisateurs.Nom_Prenom,
+                   COUNT(*) AS total
+            FROM Consomation
+            INNER JOIN Utilisateurs ON Utilisateurs.Code_Utilisateur = Consomation.id_utilisateur
+            WHERE Date_Consomation BETWEEN ? AND ?
+            GROUP BY Utilisateurs.Code_Utilisateur, Utilisateurs.Nom_Prenom
+            ORDER BY Utilisateurs.Nom_Prenom ASC
+        """, (
+            date_debut.strftime("%Y-%m-%d %H:%M:%S"),
+            date_fin.strftime("%Y-%m-%d %H:%M:%S")
+        ))
+        donnees = cursor.fetchall()
+        conn.close()
+        print(f"✅ {len(donnees)} lignes récupérées.")
     except Exception as e:
-        print(f"❌ Erreur lors de la sauvegarde du fichier : {e}")
+        print(f"❌ Erreur SQL : {e}")
+        return None, None
+
+    # --- Création du PDF ---
+    buffer = io.BytesIO() if download == 1 else None
+    output_path = os.path.join(mount_point, nom_fichier) if download == 0 else None
+
+    if download == 0 and not os.path.exists(mount_point):
+        os.makedirs(mount_point, exist_ok=True)
+
+    doc = SimpleDocTemplate(buffer if download == 1 else output_path, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Titre
+    elements.append(Paragraph(titre, styles['Title']))
+    elements.append(Spacer(1, 20))
+
+    # Tableau
+    data = [["Code Employé", "Nom et Prénom", "Quantité"]] + list(donnees)
+    table = Table(data, colWidths=[100, 250, 100])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    elements.append(table)
+
+    # Total
+    total_global = sum(row[2] for row in donnees)
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(f"Total consommations : <b>{total_global}</b>", styles['Heading3']))
+
+    # Génération finale
+    doc.build(elements)
+
+    if download == 1:
+        buffer.seek(0)
+        return buffer, nom_fichier
+    else:
+        return None, output_path
+
+# def print_daily_report_excel_usb(type_rapport, mount_point):
+#     """
+#     Génère un rapport Excel résumé (journalier, hebdomadaire, mensuel)
+#     à partir de la base SQLite locale.
+#     """
+#     import os
+#     import sqlite3
+#     from datetime import datetime, timedelta, time as dt_time
+#     from openpyxl import Workbook
+#     from openpyxl.styles import Font, Alignment, Border, Side
+#
+#     print("Début génération du rapport Excel résumé...")
+#     # --- Connexion à la base de données ---
+#     conn = sqlite3.connect(DB_PATH)
+#     print(DB_PATH)
+#     cursor = conn.cursor()
+#     print('indice 2')
+#
+#     now = datetime.now()
+#     print('indice 3')
+#     # --- Définition des bornes temporelles selon le type de rapport ---
+#     if type_rapport == 1:
+#         date_debut = datetime.combine(now.date(), dt_time.min)
+#         date_fin = datetime.combine(now.date(), dt_time.max)
+#         titre = f"Resume des consommations du {date_debut.strftime('%d/%m/%Y')}"
+#         fichier_sortie = os.path.join(mount_point, f"resume_journalier_{now.strftime('%Y%m%d')}.xlsx")
+#
+#     elif type_rapport == 2:
+#         start_of_week = now - timedelta(days=now.weekday())
+#         end_of_week = start_of_week + timedelta(days=6)
+#         date_debut = datetime.combine(start_of_week.date(), dt_time.min)
+#         date_fin = datetime.combine(end_of_week.date(), dt_time.max)
+#         titre = f"Resume des consommations du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}"
+#         fichier_sortie = os.path.join(mount_point, f"resume_hebdomadaire_{now.strftime('%Y%m%d')}.xlsx")
+#
+#     elif type_rapport == 3:
+#         start_of_month = now.replace(day=1)
+#         date_debut = datetime.combine(start_of_month.date(), dt_time.min)
+#         date_fin = datetime.combine(now.date(), dt_time.max)
+#         titre = f"Resume des consommations du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}"
+#         fichier_sortie = os.path.join(mount_point, f"resume_mensuel_{now.strftime('%Y%m%d')}.xlsx")
+#
+#     else:
+#         print("❌ Type de rapport non valide (doit être 'journalier', 'hebdomadaire' ou 'mensuel').")
+#         return
+#
+#     print(f"📅 Date début : {date_debut}")
+#     print(f"📅 Date fin   : {date_fin}")
+#
+#     # --- Récupération des données depuis la base ---
+#     try:
+#         cursor.execute("""
+#             SELECT Utilisateurs.Code_Utilisateur,
+#                    Utilisateurs.Nom_Prenom,
+#                    COUNT(*) AS total
+#             FROM Consomation
+#             INNER JOIN Utilisateurs ON Utilisateurs.Code_Utilisateur = Consomation.id_utilisateur
+#             WHERE Date_Consomation BETWEEN ? AND ?
+#             GROUP BY Utilisateurs.Code_Utilisateur, Utilisateurs.Nom_Prenom
+#             ORDER BY Utilisateurs.Nom_Prenom ASC
+#         """, (
+#             date_debut.strftime("%Y-%m-%d %H:%M:%S"),
+#             date_fin.strftime("%Y-%m-%d %H:%M:%S")
+#         ))
+#         donnees = cursor.fetchall()
+#         print(f"✅ {len(donnees)} lignes récupérées.")
+#     except Exception as e:
+#         print(f"❌ Erreur SQL : {e}")
+#         donnees = []
+#
+#     conn.close()
+#
+#     # --- Création du classeur Excel ---
+#     wb = Workbook()
+#     ws = wb.active
+#     ws.title = "Resume"
+#
+#     # --- Styles ---
+#     font_titre = Font(size=14, bold=True)
+#     font_entete = Font(bold=True)
+#     border_gray = Border(
+#         left=Side(style="thin", color="CCCCCC"),
+#         right=Side(style="thin", color="CCCCCC"),
+#         top=Side(style="thin", color="CCCCCC"),
+#         bottom=Side(style="thin", color="CCCCCC")
+#     )
+#     align_left = Alignment(horizontal="left", vertical="center")
+#     align_center = Alignment(horizontal="center", vertical="center")
+#
+#     # --- Titre ---
+#     ws.merge_cells("A1:C1")
+#     ws["A1"] = titre
+#     ws["A1"].font = font_titre
+#     ws["A1"].alignment = align_left  # aligné à gauche
+#
+#     # --- Lignes vides après le titre ---
+#     ws.append([])
+#     ws.append([])
+#     ws.append([])
+#
+#     # --- En-têtes ---
+#     headers = ["Code Employe", "Nom et Prenom", "Quantite"]
+#     ws.append(headers)
+#
+#     for col, header in enumerate(headers, 1):
+#         cell = ws.cell(row=ws.max_row, column=col)
+#         cell.font = font_entete
+#         cell.alignment = align_center
+#         cell.border = border_gray
+#
+#     # --- Lignes de données ---
+#     for code, nom_prenom, total in donnees:
+#         ws.append([code, nom_prenom, total])
+#
+#     # --- Style des cellules de données ---
+#     for row in ws.iter_rows(min_row=5, max_row=ws.max_row, min_col=1, max_col=3):
+#         for idx, cell in enumerate(row, start=1):
+#             cell.border = border_gray
+#             if idx == 1:  # Code Employe
+#                 cell.alignment = align_center
+#             elif idx == 2:  # Nom et Prenom
+#                 cell.alignment = align_left
+#             elif idx == 3:  # Quantite
+#                 cell.alignment = align_center
+#
+#     # --- Largeur des colonnes ---
+#     ws.column_dimensions["A"].width = 15
+#     ws.column_dimensions["B"].width = 35
+#     ws.column_dimensions["C"].width = 15
+#
+#     # --- Ligne du total ---
+#     last_data_row = ws.max_row
+#     total_row = last_data_row + 2
+#     ws[f"B{total_row}"] = "Total consommations :"
+#     ws[f"B{total_row}"].font = font_entete
+#     ws[f"C{total_row}"] = f"=SUM(C5:C{last_data_row})"
+#     ws[f"C{total_row}"].font = font_entete
+#     ws[f"C{total_row}"].alignment = align_center
+#
+#     # --- Sauvegarde du fichier ---
+#     try:
+#         wb.save(fichier_sortie)
+#         print(f"✅ Rapport Excel résumé sauvegardé sur {fichier_sortie}")
+#     except Exception as e:
+#         print(f"❌ Erreur lors de la sauvegarde du fichier : {e}")
 
 
 

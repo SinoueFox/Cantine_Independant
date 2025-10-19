@@ -3,3 +3,6 @@
 2025-10-06T18:39:59.006213 - Erreur process_attendance : name 'sqlite3' is not defined
 2025-10-06T18:40:04.584577 - Erreur process_attendance : name 'sqlite3' is not defined
 2025-10-06T18:40:04.585536 - Erreur process_attendance : name 'sqlite3' is not defined
+2025-10-19T19:38:53.688293 - Erreur lors de l'impression du résumé journalier : 'NoneType' object has no attribute 'cut'
+2025-10-19T19:53:55.558337 - Erreur lors de l'impression du résumé journalier : 'NoneType' object has no attribute 'cut'
+2025-10-19T20:23:44.063032 - Erreur lors de l'impression du résumé journalier : 'NoneType' object has no attribute 'cut'

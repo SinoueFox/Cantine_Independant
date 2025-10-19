@@ -1,8 +1,8 @@
 import signal
 import sys
 from flask import Flask, render_template, request, redirect, jsonify, flash
-from Printer_Function import test_printer, print_daily_summary3, print_weekly_summary, print_month_summary
-from Fonctions_BDD import init_db
+from Printer_Function import test_printer, print_daily_summary3,print_daily_report_excel_usb,print_daily_report_pdf_usb, print_weekly_summary, print_month_summary,copy_usb_report
+from Fonctions_BDD import init_db,Vider_base
 from USB_Fonctions import detect_and_mount_usb, usb_presente, get_usb_printer
 from zk import ZK
 from Cantine_Functions import get_time_slot, Import_from_Excel, charger_time_slots, POINTEUSE_IP, POINTEUSE_PORT
@@ -74,9 +74,7 @@ def rapport():
     return render_template("Rapport.html")
 
 
-@app.route('/Configuration')
-def configuration():
-    return render_template("Configuration.html")
+
 
 
 @app.route('/Import_Excel')
@@ -90,45 +88,164 @@ def import_excel():
         return "Importation Echoue !"
 
 
+from flask import send_file, redirect, flash
+from datetime import datetime
 
-@app.route('/Rapport_Journalier', methods=["POST"])
-def rapport_journalier():
+@app.route('/saisie_configuration', methods=['GET', 'POST'])
+def saisie_configuration():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        nom_societe = request.form.get('nom_societe')
+        numero_borne = request.form.get('numero_borne')
+
+        # Vérifier si une ligne existe déjà
+        cursor.execute("SELECT COUNT(*) FROM Configuration")
+        exists = cursor.fetchone()[0]
+
+        if exists == 0:
+            cursor.execute("INSERT INTO Configuration (NUMERO_BORNE, NOM_SOCIETE) VALUES (?, ?)",
+                           (numero_borne, nom_societe))
+        else:
+            cursor.execute("UPDATE Configuration SET NUMERO_BORNE = ?, NOM_SOCIETE = ?",
+                           (numero_borne, nom_societe))
+
+        conn.commit()
+        conn.close()
+        flash("✅ Configuration enregistrée avec succès.")
+        return redirect('/configuration')
+
+    # En GET → Récupérer les valeurs existantes pour pré-remplir
+    cursor.execute("SELECT NUMERO_BORNE, NOM_SOCIETE FROM Configuration LIMIT 1")
+    config = cursor.fetchone()
+    conn.close()
+
+    numero_borne = config[0] if config else ""
+    nom_societe = config[1] if config else ""
+
+    return render_template('configuration_entreprise.html', numero_borne=numero_borne, nom_societe=nom_societe)
+
+
+@app.route('/vider_base')
+def vider_base():
     try:
+        Vider_base()  # Appel de ta fonction Python qui vide la base
+        flash("✅ Base de données vidée avec succès.", "success")
+    except Exception as e:
+        flash(f"❌ Erreur lors de la suppression : {e}", "error")
+    return redirect('/configuration')
+
+@app.route('/generer_rapport', methods=["POST"])
+def generer_rapport():
+    type_rapport_str = request.form.get("type_rapport")
+    destination = request.form.get("destination")
+    format_export = request.form.get("format")
+
+    print("Type de rapport :", type_rapport_str)
+    print("Destination :", destination)
+    print("Format :", format_export)
+
+    # Correspondance des types de rapport
+    rapport_map = {"Journalier": 1, "Hebdomadaire": 2, "Mensuel": 3}
+    type_rapport = rapport_map.get(type_rapport_str)
+
+    if not type_rapport:
+        return "❌ Type de rapport invalide."
+
+    # CAS 1️⃣ : Impression ticket
+    if destination == "ticket":
         if printer:
             print_daily_summary3(printer)
-            return jsonify(success=True)
+            return f"✅ Rapport {type_rapport_str} imprimé sur ticket."
+        return "❌ Aucune imprimante détectée."
+
+    # CAS 2️⃣ : Téléchargement (PDF ou Excel)
+    if destination == "download":
+        if format_export == "excel":
+            buffer, filename = print_daily_report_excel_usb(type_rapport, mount_point, download=1)
+            if buffer:
+                return send_file(
+                    buffer,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+            return "❌ Erreur lors de la génération du fichier Excel."
+
+        elif format_export == "pdf":
+            buffer, filename = print_daily_report_pdf_usb(type_rapport, mount_point, download=1)
+            if buffer:
+                return send_file(
+                    buffer,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+            return "⚠ Génération PDF pour téléchargement en cours de développement."
+
         else:
-            raise Exception("Imprimante non détectée.")
-    except Exception as e:
-        print(f"Erreur impression journalière : {e}")
-        log_error(f"Erreur Rapport_Journalier : {e}")
-        return jsonify(success=False, error=str(e))
+            return "❌ Format non pris en charge pour le téléchargement."
 
+    # CAS 3️⃣ : Sauvegarde sur USB
+    if destination == "usb":
+        if format_export == "excel":
+            copy_usb_report(printer, type_rapport)
+            return f"✅ Rapport Excel {type_rapport_str} enregistré sur USB."
 
-@app.route('/Rapport_Hebdomadaire', methods=["POST"])
-def rapport_hebdomadaire():
-    try:
-        if printer:
-            print_weekly_summary(printer)
-            return jsonify(success=True)
-        else:
-            raise Exception("Imprimante non détectée.")
-    except Exception as e:
-        print(f"Erreur impression hebdomadaire : {e}")
-        return jsonify(success=False, error=str(e))
+        elif format_export == "pdf":
+            # TODO: Génération PDF USB
 
+            return f"⚠ Rapport PDF {type_rapport_str} USB en cours de développement."
 
-@app.route('/Rapport_Mensuel', methods=["POST"])
-def rapport_mensuel():
-    try:
-        if printer:
-            print_month_summary(printer)
-            return jsonify(success=True)
-        else:
-            raise Exception("Imprimante non détectée.")
-    except Exception as e:
-        print(f"Erreur impression mensuelle : {e}")
-        return jsonify(success=False, error=str(e))
+        return "❌ Format non pris en charge pour USB."
+
+    return f"❌ Combinaison non prise en charge ({type_rapport_str} / {destination} / {format_export})."
+
+@app.route('/configuration')
+def configuration():
+    return render_template('configuration.html')
+
+# @app.route('/Rapport_Journalier', methods=["POST"])
+# def rapport_journalier():
+#     try:
+#
+#         if printer:
+#             print_daily_summary3(printer)
+#             return jsonify(success=True)
+#         else:
+#             raise Exception("Imprimante non détectée.")
+#     except Exception as e:
+#         print(f"Erreur impression journalière : {e}")
+#         log_error(f"Erreur Rapport_Journalier : {e}")
+#         return jsonify(success=False, error=str(e))
+#
+#
+# @app.route('/Rapport_Hebdomadaire', methods=["POST"])
+# def rapport_hebdomadaire():
+#     try:
+#
+#         if printer:
+#             print_weekly_summary(printer)
+#             return jsonify(success=True)
+#         else:
+#             raise Exception("Imprimante non détectée.")
+#     except Exception as e:
+#         print(f"Erreur impression hebdomadaire : {e}")
+#         return jsonify(success=False, error=str(e))
+#
+#
+# @app.route('/Rapport_Mensuel', methods=["POST"])
+# def rapport_mensuel():
+#     try:
+#         if printer:
+#             print_month_summary(printer)
+#             return jsonify(success=True)
+#         else:
+#             raise Exception("Imprimante non détectée.")
+#     except Exception as e:
+#         print(f"Erreur impression mensuelle : {e}")
+#         return jsonify(success=False, error=str(e))
 
 
 @app.route("/Utilisateur")

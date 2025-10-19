@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu principal</title>
+    <title>Configuration Entreprise & Borne</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,12 +23,21 @@
             border-radius: 12px;
             box-shadow: 0 0 8px rgba(0, 0, 0, 0.15);
             width: 90%;
-            max-width: 350px;
+            max-width: 400px;
         }
 
         h1 {
             margin-bottom: 25px;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
         }
 
         .btn {
@@ -52,32 +61,32 @@
         .btn:active {
             background-color: #bcbcbc;
         }
+
+        .message {
+            color: green;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Menu principal</h1>
-        <button class="btn" onclick="location.href='/rapport'">📊 Rapport</button>
-        <button class="btn" onclick="ImporterExcel()">📥 Importer Utilisateurs Excel</button>
-        <button class="btn" onclick="location.href='/Utilisateur'">👥 Utilisateurs</button>
-        <button class="btn" onclick="location.href='/configuration'">⚙️ Configuration</button>
-    </div>
+        <h1>Configuration</h1>
 
-    <script>
-        function ImporterExcel() {
-            fetch('/Import_Excel')
-            .then(response => response.text())
-            .then(data => {
-                if (data.includes("succès")) {
-                    alert("✅ " + data);
-                } else {
-                    alert("❌ " + data);
-                }
-            })
-            .catch(error => {
-                alert("⚠️ Erreur de communication : " + error);
-            });
-        }
-    </script>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="message">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <input class="input-field" type="text" name="nom_societe" placeholder="Nom de l'entreprise" value="{{ nom_societe }}" required>
+            <input class="input-field" type="number" name="numero_borne" placeholder="Numéro de la borne" value="{{ numero_borne }}" required>
+
+            <button class="btn" type="submit">💾 Enregistrer</button>
+        </form>
+
+        <button class="btn" onclick="location.href='/configuration'">⬅️ Retour</button>
+    </div>
 </body>
 </html>

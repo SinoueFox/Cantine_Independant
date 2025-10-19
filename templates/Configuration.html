@@ -1,10 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configuration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            background: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 350px;
+        }
+
+        h1 {
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            background-color: #e0e0e0;
+            color: #000;
+            border: none;
+            padding: 14px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .btn:hover {
+            background-color: #d0d0d0;
+        }
+
+        .btn:active {
+            background-color: #bcbcbc;
+        }
+    </style>
 </head>
 <body>
-<p>  Configuration </p>
+    <div class="container">
+        <h1>Configuration</h1>
+        <button class="btn" onclick="confirmerViderBase()">🗑️ Vider la base de données</button>
+        <button class="btn" onclick="location.href='/saisie_configuration'">🏢 Configurer entreprise et borne</button>
+        <button class="btn" onclick="location.href='/horaires_repas'">⏰ Définir horaires repas</button>
+        <button class="btn" onclick="location.href='/'">⬅️ Retour au menu</button>
+    </div>
 </body>
+<script>
+    function confirmerViderBase() {
+        if (confirm("⚠️ ATTENTION : Cette action supprimera TOUTES les données. Êtes-vous sûr de vouloir continuer ?")) {
+            // Redirige vers la route Flask
+            window.location.href = "/vider_base";
+        }
+    }
+</script>
 </html>
+

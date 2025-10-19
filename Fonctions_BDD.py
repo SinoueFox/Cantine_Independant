@@ -32,6 +32,45 @@ def Ajouter_Consomation_SQLITE(id_utilisateur, Nbr_repas, TYPE_REPAS, Jour_annee
     finally:
         conn_sqlite.close()
 
+def Vider_base():
+    import sqlite3
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+
+        # Suppression du contenu des tables
+        cur.execute("DELETE FROM Consomation")
+        cur.execute("DELETE FROM Utilisateurs")
+
+        # Réinitialisation des compteurs AUTOINCREMENT (optionnel mais recommandé)
+        cur.execute("DELETE FROM sqlite_sequence WHERE name='Consomation'")
+        cur.execute("DELETE FROM sqlite_sequence WHERE name='Utilisateurs'")
+
+        conn.commit()
+        conn.close()
+        print("✅ Base de données vidée avec succès.")
+        vider_pointeuse(ip="192.168.1.201", port=4370)
+    except Exception as e:
+        print(f"❌ Erreur lors de la suppression : {e}")
+
+
+def vider_pointeuse(ip="192.168.1.201", port=4370):
+    zk = ZK(ip, port=port, timeout=5, password=0, force_udp=False, ommit_ping=False)
+    try:
+        print("🔗 Connexion à la pointeuse...")
+        conn = zk.connect()
+        conn.disable_device()
+
+        print("🗑️ Suppression de toutes les données (utilisateurs, empreintes, logs)...")
+        conn.clear_data()  # Efface TOUT
+
+        conn.enable_device()
+        conn.disconnect()
+        print("✅ Pointeuse vidée avec succès.")
+    except Exception as e:
+        print(f"❌ Erreur : {e}")
+
+
 def Ajouter_Utilisateur_SQLITE(Code_Utilisateur : int,Nom_Prenom : str):
     try:
         print("passage3")
@@ -68,6 +107,9 @@ def init_db():
         Nom_Prenom TEXT NOT NULL,
         Nombre_Repas INTEGER NOT NULL,
         Num_Carte TEXT )""")
+    cur.execute("""
+    
+    CREATE TABLE IF NOT EXISTS Configuration (NUMERO_BORNE INTEGER NOT NULL,NOM_SOCIETE TEXT NOT NULL)""")
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS Consomation (
