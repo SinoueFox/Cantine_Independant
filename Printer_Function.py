@@ -269,7 +269,7 @@ def copy_usb_report(p,type_report):
     except Exception as e:
         log_error(f"Erreur lors de l'impression du résumé journalier : {e}")
 
-def print_ticket(user_dict, att, slot_label, printer, type_repas, time_conso, exempt):
+def print_ticket(user_dict, att, slot_label, printer, type_repas, time_conso, exempt,societe):
     """Imprime un ticket de consommation"""
     print('impression de ticket')
     try:
@@ -281,6 +281,7 @@ def print_ticket(user_dict, att, slot_label, printer, type_repas, time_conso, ex
 
         try:
             printer.set(align='center', bold=True, double_height=True)
+            printer.text(societe)
             printer.text("Consomation\n")
             printer.set(align='left', bold=False, double_height=False)
             printer.text(f"Date      : {timestamp_str}\n")

@@ -2,7 +2,7 @@ import signal
 import sys
 from flask import Flask, render_template, request, redirect, jsonify, flash
 from Printer_Function import test_printer, print_daily_summary3,print_daily_report_excel_usb,print_daily_report_pdf_usb, print_weekly_summary, print_month_summary,copy_usb_report
-from Fonctions_BDD import init_db,Vider_base
+from Fonctions_BDD import init_db,Vider_base,charger_configuration
 from USB_Fonctions import detect_and_mount_usb, usb_presente, get_usb_printer
 from zk import ZK
 from Cantine_Functions import get_time_slot, Import_from_Excel, charger_time_slots, POINTEUSE_IP, POINTEUSE_PORT
@@ -458,7 +458,7 @@ def run_zk_listener(zk_device):
                     if att:
                         print(f"📲 Pointage détecté : {att.user_id}")
                         print(user_dict)
-                        process_attendance(att, user_dict, printer)
+                        process_attendance(att, user_dict, printer,nom_societe)
             except Exception as e:
                 print(f"⚠️ Erreur live_capture : {e}. Reconnexion dans 5s...")
                 time.sleep(5)
@@ -498,6 +498,8 @@ def monitor_usb():
 if __name__ == '__main__':
     print("🚀 Initialisation de la base de données...")
     init_db()
+    config = charger_configuration()
+    nom_societe = config.get("nom_societe", "Société inconnue")
     print("✅ Base de données prête. Lancement du serveur Flask...")
 
     mount_point = detect_and_mount_usb()

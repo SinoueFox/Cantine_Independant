@@ -1,19 +1,43 @@
 import sqlite3
+
+from zk import ZK
+
 DB_FILE = "raspberry_data.db"
+
+def charger_configuration():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT NUMERO_BORNE, NOM_SOCIETE FROM Configuration LIMIT 1")
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        return {
+            "numero_borne": result[0],
+            "nom_societe": result[1]
+        }
+    else:
+        return {
+            "numero_borne": None,
+            "nom_societe": None
+        }
 
 def Ajouter_Consomation_SQLITE(id_utilisateur, Nbr_repas, TYPE_REPAS, Jour_annee,Annee_consomation: int,
                                Date_Consomation,TYPE_REPAS_STR: str):
     try:
+        config = charger_configuration()
+        numero_borne = config["numero_borne"]
+
         print("passage3")
         print(TYPE_REPAS)
         conn_sqlite = sqlite3.connect(DB_FILE)
         cur = conn_sqlite.cursor()
         cur.execute("""
                     INSERT INTO Consomation (id_utilisateur, Nbr_repas, TYPE_REPAS,
-                                             Jour_annee,Annee_consomation,Date_Consomation,TYPE_REPAS_STR)
-                    VALUES (?, ?, ?, ?, ?,?,?)
+                                             Jour_annee,Annee_consomation,Date_Consomation,TYPE_REPAS_STR,NUMERO_BORNE)
+                    VALUES (?, ?, ?, ?, ?,?,?,?)
                     """, (id_utilisateur, 1, TYPE_REPAS,
-                          Jour_annee,Annee_consomation,Date_Consomation,TYPE_REPAS_STR))  # Corrigé: TYPE_REPAS et Date_Consomation étaient des valeurs fixes
+                          Jour_annee,Annee_consomation,Date_Consomation,TYPE_REPAS_STR),numero_borne)  # Corrigé: TYPE_REPAS et Date_Consomation étaient des valeurs fixes
         # envoie la consomation sur la firebird
 
         conn_sqlite.commit()
@@ -35,7 +59,7 @@ def Ajouter_Consomation_SQLITE(id_utilisateur, Nbr_repas, TYPE_REPAS, Jour_annee
 def Vider_base():
     import sqlite3
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_FILE)
         cur = conn.cursor()
 
         # Suppression du contenu des tables

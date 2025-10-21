@@ -77,7 +77,7 @@ def charger_time_slots():
             "Diner":          {"id_repas": 4, "start": dt_time(17, 31),"end": dt_time(23, 59)},
         }
 
-def process_attendance(att, user_dict, printer):
+def process_attendance(att, user_dict, printer,nom_societe):
     """Traite une entrée de pointage"""
     print('Process Attendance ')
     try:
@@ -147,7 +147,7 @@ def process_attendance(att, user_dict, printer):
         print("avant exempt")
         if exempt:
             slot_label = f"{label} ({user_name})"
-            print_ticket(user_dict, att, slot_label, printer, slot_id, timestamp, True)
+            print_ticket(user_dict, att, slot_label, printer, slot_id, timestamp, True,nom_societe)
         else:
             # Vérifier doublon dans la même journée/créneau
             print('verification doublon')
@@ -163,7 +163,7 @@ def process_attendance(att, user_dict, printer):
             print(f"[{timestamp_str}] ID {user_id} a déjà consommé ce créneau → pas de ticket.")
             return
 
-        print_ticket(user_dict, att, label, printer, slot_id, timestamp, False)
+        print_ticket(user_dict, att, label, printer, slot_id, timestamp, False,nom_societe)
 
     except Exception as e:
             log_error(f"Erreur process_attendance : {e}")
