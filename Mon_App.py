@@ -204,7 +204,7 @@ def generer_rapport():
 
 @app.route('/configuration')
 def configuration():
-    return render_template('configuration.html')
+    return render_template('Configuration.html')
 
 # @app.route('/Rapport_Journalier', methods=["POST"])
 # def rapport_journalier():

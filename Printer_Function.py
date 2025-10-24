@@ -278,11 +278,12 @@ def print_ticket(user_dict, att, slot_label, printer, type_repas, time_conso, ex
         timestamp_str = att.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         jour_annee = datetime.now().timetuple().tm_yday
         annee = datetime.now().year
-
+        print('in print_ticket')
         try:
             printer.set(align='center', bold=True, double_height=True)
-            printer.text(societe)
-            printer.text("Consomation\n")
+            printer.text(societe + "\n")
+            printer.text("\n")
+            printer.text("Ticket Repas\n")
             printer.set(align='left', bold=False, double_height=False)
             printer.text(f"Date      : {timestamp_str}\n")
             printer.text(f"ID        : {user_id}\n")
@@ -290,15 +291,21 @@ def print_ticket(user_dict, att, slot_label, printer, type_repas, time_conso, ex
             printer.text(f"Creneau   : {slot_label}\n")
             printer.text("--------------------------\n")
             printer.text(f"{datetime.now().strftime('%H:%M:%S')}\n")
+            print('coucoucou')
             printer.cut()
+            print('coucoucou2')
         except Exception as printer_error:
             log_error(f"Erreur d'impression ID {user_id} : {printer_error}")
             return
-
+        print('toujours dans print')
         label, slot_id = get_time_slot(datetime.now())
+
+
         if exempt:
             print("je suis dans exempt")
-            Ajouter_Consomation_SQLITE(user_id, 1, slot_id, jour_annee, annee, time_conso, f"{label} {user_name}")
+            #Ajouter_Consomation_SQLITE(user_id, 1, slot_id, jour_annee, annee, time_conso, f"{label} {user_name}")
+            Ajouter_Consomation_SQLITE(user_id, 1, slot_id, jour_annee, annee, time_conso, f"{str(label)} {user_name}")
+
         else:
             print("je suis dans non exempt")
             Ajouter_Consomation_SQLITE(user_id, 1, slot_id, jour_annee, annee, time_conso, label)

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="bpsi@192.168.100.54:22 password (3)" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="bpsi@192.168.100.69:22 password" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="bpsi@192.168.100.10:22 password">
         <serverdata>
@@ -55,6 +55,13 @@
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="bpsi@192.168.100.69:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/bpsi" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

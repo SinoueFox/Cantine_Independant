@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.11 (Projet_Flask1)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 virtualenv at D:\raspberry\file_attente\.venv" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.13.5 (sftp://bpsi@192.168.100.69:22/home/bpsi/bin/python)" project-jdk-type="Python SDK" />
 </project>
