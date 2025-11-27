@@ -2,7 +2,7 @@ import signal
 import sys
 from flask import Flask, render_template, request, redirect, jsonify, flash
 from Printer_Function import test_printer, print_daily_summary3,print_daily_report_excel_usb,print_daily_report_pdf_usb, print_weekly_summary, print_month_summary,copy_usb_report
-from Fonctions_BDD import init_db,Vider_base,charger_configuration
+from Fonctions_BDD import init_db,Vider_base,charger_configuration,get_users_page, get_total_users,Ajouter_Utilisateur_SQLITE
 from USB_Fonctions import detect_and_mount_usb, usb_presente, get_usb_printer
 from zk import ZK
 from Cantine_Functions import get_time_slot, Import_from_Excel, charger_time_slots, POINTEUSE_IP, POINTEUSE_PORT
@@ -13,7 +13,7 @@ import time
 import threading
 import subprocess
 import os
-
+from Wiegans_Function import wiegand_listener
 CWD = os.path.dirname(os.path.realpath(__file__))
 DB_FILE = "raspberry_data.db"
 LOG_PATH = os.path.join(CWD, "errors.log") # <-- AJOUTEZ CETTE LIGNE
@@ -40,7 +40,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 def get_all_users():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_Repas FROM Utilisateurs")
+    cur.execute("SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_Tickets FROM Utilisateurs")
     users = cur.fetchall()
     conn.close()
     print(users)
@@ -99,17 +99,25 @@ def saisie_configuration():
     if request.method == 'POST':
         nom_societe = request.form.get('nom_societe')
         numero_borne = request.form.get('numero_borne')
+        pointeuse = request.form.get('pointeuse_val')
+        print ('pointeuse = ' + pointeuse)
+        tourniquet = request.form.get('tourniquet_val')
+        gpio_tourniquet = request.form.get('gpio_tourniquet')
+        lecteur_carte = request.form.get('lecteur_val')
+        gpio1 = request.form.get('gpio1')
+        gpio2 = request.form.get('gpio2')
+        ip_pointeuse = request.form.get('ip_pointeuse')
 
         # Vérifier si une ligne existe déjà
         cursor.execute("SELECT COUNT(*) FROM Configuration")
         exists = cursor.fetchone()[0]
 
         if exists == 0:
-            cursor.execute("INSERT INTO Configuration (NUMERO_BORNE, NOM_SOCIETE) VALUES (?, ?)",
-                           (numero_borne, nom_societe))
+            cursor.execute("INSERT INTO Configuration (NUMERO_BORNE, NOM_SOCIETE,TOURNIQUET,GPIO_TOURNIQUET,LECTEUR_WIEGAND,GPIO1,GPIO2,POINTEUSE,IP_POINTEUSE) VALUES (?,?,?,?,?,?,?,?,?)",
+                           (numero_borne, nom_societe,tourniquet,gpio_tourniquet,lecteur_carte,gpio1,gpio2,pointeuse,ip_pointeuse))
         else:
-            cursor.execute("UPDATE Configuration SET NUMERO_BORNE = ?, NOM_SOCIETE = ?",
-                           (numero_borne, nom_societe))
+            cursor.execute("UPDATE Configuration SET NUMERO_BORNE = ?, NOM_SOCIETE = ?,GPIO_TOURNIQUET = ?,TOURNIQUET = ?,LECTEUR_WIEGAND = ?,GPIO1 = ?,GPIO2 = ?,POINTEUSE = ?,IP_POINTEUSE = ? ",
+                           (numero_borne, nom_societe,gpio_tourniquet,tourniquet,lecteur_carte,gpio1,gpio2,pointeuse,ip_pointeuse))
 
         conn.commit()
         conn.close()
@@ -117,14 +125,15 @@ def saisie_configuration():
         return redirect('/configuration')
 
     # En GET → Récupérer les valeurs existantes pour pré-remplir
-    cursor.execute("SELECT NUMERO_BORNE, NOM_SOCIETE FROM Configuration LIMIT 1")
+    cursor.execute("SELECT NUMERO_BORNE, NOM_SOCIETE,GPIO_TOURNIQUET FROM Configuration LIMIT 1")
     config = cursor.fetchone()
     conn.close()
 
     numero_borne = config[0] if config else ""
     nom_societe = config[1] if config else ""
+    gpio_tourniquet = config[2] if config else ""
 
-    return render_template('configuration_entreprise.html', numero_borne=numero_borne, nom_societe=nom_societe)
+    return render_template('configuration_entreprise.html', numero_borne=numero_borne, nom_societe=nom_societe,gpio_tourniquet = gpio_tourniquet)
 
 
 @app.route('/vider_base')
@@ -206,54 +215,9 @@ def generer_rapport():
 def configuration():
     return render_template('Configuration.html')
 
-# @app.route('/Rapport_Journalier', methods=["POST"])
-# def rapport_journalier():
-#     try:
-#
-#         if printer:
-#             print_daily_summary3(printer)
-#             return jsonify(success=True)
-#         else:
-#             raise Exception("Imprimante non détectée.")
-#     except Exception as e:
-#         print(f"Erreur impression journalière : {e}")
-#         log_error(f"Erreur Rapport_Journalier : {e}")
-#         return jsonify(success=False, error=str(e))
-#
-#
-# @app.route('/Rapport_Hebdomadaire', methods=["POST"])
-# def rapport_hebdomadaire():
-#     try:
-#
-#         if printer:
-#             print_weekly_summary(printer)
-#             return jsonify(success=True)
-#         else:
-#             raise Exception("Imprimante non détectée.")
-#     except Exception as e:
-#         print(f"Erreur impression hebdomadaire : {e}")
-#         return jsonify(success=False, error=str(e))
-#
-#
-# @app.route('/Rapport_Mensuel', methods=["POST"])
-# def rapport_mensuel():
-#     try:
-#         if printer:
-#             print_month_summary(printer)
-#             return jsonify(success=True)
-#         else:
-#             raise Exception("Imprimante non détectée.")
-#     except Exception as e:
-#         print(f"Erreur impression mensuelle : {e}")
-#         return jsonify(success=False, error=str(e))
-
-
 @app.route("/Utilisateur")
 def utilisateurs():
-    try:
-        page = int(request.args.get("page", 1))
-    except ValueError:
-        page = 1
+
 
     per_page = 10
     offset = (page - 1) * per_page
@@ -261,7 +225,7 @@ def utilisateurs():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     cur.execute("""
-        SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_Repas
+        SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_Tickets
         FROM Utilisateurs
         ORDER BY id DESC
         LIMIT ? OFFSET ?
@@ -270,12 +234,25 @@ def utilisateurs():
     cur.execute("SELECT COUNT(*) FROM Utilisateurs")
     total_users = cur.fetchone()[0]
     conn.close()
-
     total_pages = (total_users + per_page - 1) // per_page
     return render_template("Utilisateur.html",
                            utilisateurs=users,
                            page=page,
                            total_pages=total_pages)
+
+    def afficher_utilisateurs(page, per_page):
+        offset = (page - 1) * per_page
+        users = get_users_page(per_page, offset)
+        total = get_total_users()
+        return users, total
+
+    try:
+        page = int(request.args.get("page", 1))
+        per_page = 10
+    except ValueError:
+        page = 1
+        afficher_utilisateurs(page, per_page)
+
 
 
 @app.route("/ajouter_utilisateur", methods=["POST"])
@@ -287,7 +264,7 @@ def ajouter_utilisateur():
         conn = sqlite3.connect(DB_FILE)
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO Utilisateurs (Code_Utilisateur, Nom_Prenom, Nombre_Repas)
+            INSERT INTO Utilisateurs (Code_Utilisateur, Nom_Prenom, Nombre_Tickets)
             VALUES (?, ?, 1)
         """, (Code_Utilisateur, Nom_Prenom))
         conn.commit()
@@ -339,7 +316,7 @@ def update_user():
 
     # 2️⃣ Mise à jour sur la pointeuse ZKTeco
     try:
-        zk = ZK("192.168.100.201", port=4370, timeout=5)
+        zk = ZK(Ip_Pointeuse, port=4370, timeout=5)
         conn = zk.connect()
         conn.disable_device()
         print("indice 1")
@@ -396,7 +373,7 @@ def api_utilisateurs():
     total_pages = math.ceil(total / per_page) if total > 0 else 1
 
     cur.execute("""
-        SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_repas
+        SELECT id, Code_Utilisateur, Nom_Prenom, Nombre_Tickets
         FROM utilisateurs
         ORDER BY id DESC
         LIMIT ? OFFSET ?
@@ -425,15 +402,47 @@ def delete_user():
         return jsonify(success=False, error=str(e))
     finally:
         conn.close()
+def get_db():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
+# -----------------------
+# 🔹 LISTER LES UTILISATEURS
+# -----------------------
+@app.get("/api/utilisateurs")
+def get_utilisateurs():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT code_utilisateur, nom_prenom FROM utilisateurs")
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
 
+@app.post("/api/utilisateurs/add")
+def add_utilisateur():
+    data = request.json
+
+    code_utilisateur = data.get("code_utilisateur")
+    nom_prenom = data.get("nom_prenom")
+    Nombre_Tickets = data.get("nombre_Tickets")
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO utilisateurs (code_utilisateur, nom_prenom,Nombre_Tickets) VALUES (?, ?,?)",
+        (code_utilisateur, nom_prenom,Nombre_Tickets)
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status": "ok", "message": "Utilisateur ajouté"})
 # --- Thread de capture ZKTeco ---
 def run_zk_listener(zk_device):
     from Cantine_Functions import process_attendance
     locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+    print('ZK LISTENER')
     try:
         zk_conn = zk_device.connect()
-
         # --- Lecture de l'heure sur la pointeuse
         zk_time = zk_conn.get_time()
         print(f"🕒 Heure de la pointeuse : {zk_time:%Y-%m-%d %H:%M:%S}")
@@ -447,9 +456,43 @@ def run_zk_listener(zk_device):
 
         print(f"✅ Heure du Raspberry Pi synchronisée avec la pointeuse ({date_str})")
 
-        users = zk_conn.get_users()
-        user_dict = {user.user_id: user.name for user in users}
-        print(user_dict)
+
+
+
+        conn_utilisateur = sqlite3.connect(DB_FILE)
+        cur = conn_utilisateur.cursor()
+
+        cur.execute("SELECT * FROM Utilisateurs ORDER BY id ASC")
+        rows = cur.fetchall()
+        try :
+            for row in rows:
+              print('in ROW')
+              zk_conn.disable_device()  # Toujours désactiver avant écriture
+              # Les infos utilisateur que tu veux ajouter
+              #uid = 10
+              # ID interne (unique dans la pointeuse)
+              user_id = row[1]  # Code utilisateur / Matricule
+              name = row[2]  # Nom affiché
+
+
+            # Ajouter l'utilisateur
+              zk_conn.set_user(
+                name=name,  # Nom
+                user_id=str(user_id)  # Le vrai identifiant utilisateur
+              )
+
+            print("Utilisateur ajouté avec succès !")
+
+            zk_conn.enable_device()
+            zk_conn.disconnect()
+
+        except Exception as e:
+            print("Erreur :", e)
+
+
+        # for code, nom in user_dict.items():
+        #     print(f"Ajout de {nom} (Code {code}) dans SQLite...")
+        #     Ajouter_Utilisateur_SQLITE(code, nom)
         print("✅ Système prêt. En attente de pointages...")
 
         while True:
@@ -494,12 +537,82 @@ def monitor_usb():
             print(f"⚠️ Erreur dans la surveillance USB : {e}")
 
         time.sleep(5)  # Vérifie toutes les 5 secondes
+# ------------------- CONFIGURATION IP ETH0 -------------------
+CONNECTION_NAME = "Connexion filaire 1"  # Nom utilisé par nmcli (à vérifier avec nmcli c show)
+MASK = "24"
+DNS = "8.8.8.8"
+
+import re
+
+def extract_gateway(ip):
+            """Transforme ex: 192.168.100.50 -> 192.168.100.1"""
+            parts = ip.split('.')
+            parts[-1] = '1'
+            return '.'.join(parts)
+@app.route('/config_ip', methods=['GET', 'POST'])
+def config_ip():
+    if request.method == "POST":
+        ip = request.form.get("ip")
+
+        # Validation de l'IP
+        if not re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip):
+            flash("❌ Adresse IP invalide!", "danger")
+            return redirect('/config_ip')
+
+        gateway = extract_gateway(ip)
+
+        try:
+            # Modifier l'adresse IP
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.addresses", f"{ip}/{MASK}"],
+                check=True
+            )
+            # Ajouter la passerelle
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.gateway", gateway],
+                check=True
+            )
+            # Ajouter DNS
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.dns", DNS],
+                check=True
+            )
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.method", "manual"],
+                check=True
+            )
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "up", CONNECTION_NAME],
+                check=True
+            )
+
+            flash(f"✅ Nouvelle IP appliquée : {ip} (passerelle : {gateway})", "success")
+
+        except subprocess.CalledProcessError as e:
+            flash(f"❌ Erreur lors de l'application : {e}", "danger")
+
+        return redirect('/config_ip')
+
+    # Si méthode GET, on affiche juste la page
+    return render_template('config_ip.html')
+
+
 # --- Lancement principal ---
 if __name__ == '__main__':
     print("🚀 Initialisation de la base de données...")
     init_db()
+    import RPi.GPIO as GPIO
+    GPIO.setwarnings(False)
+    GPIO.cleanup()
     config = charger_configuration()
     nom_societe = config.get("nom_societe", "Société inconnue")
+    pointeuse = config.get("pointeuse", "Pointeuse")
+    print('pointeuse = ' + str(pointeuse))
+    Ip_Pointeuse = config.get("Ip_Pointeuse", "Pointeuse")
+    print('ip pointeuse =' + Ip_Pointeuse)
+    Gpio1 = config.get("Gpio1", "Gpio1")
+    Gpio2 = config.get("Gpio2", "Gpio2")
+
     print("✅ Base de données prête. Lancement du serveur Flask...")
 
     mount_point = detect_and_mount_usb()
@@ -507,7 +620,9 @@ if __name__ == '__main__':
         print("⚠️ Impossible de détecter ou de monter la clé USB.")
     else:
         print("la clé USB OK.")
-    zk_device = ZK('192.168.100.201', port=4370)
+
+    zk_device = ZK(Ip_Pointeuse, port=4370)
+
     label, slot_id = get_time_slot(datetime.now())
     print(label, slot_id)
 
@@ -524,9 +639,16 @@ if __name__ == '__main__':
         printer.cut()
     else:
         print("⚠️ Aucune imprimante détectée.")
+    if pointeuse == 1 :
+        # trhreading pour pointeuse ZKTECO
+        listener_thread = threading.Thread(target=run_zk_listener, args=(zk_device,), daemon=True)
+        print('Pointeuse détectée1')
+        listener_thread.start()
+        print('Pointeuse détectée2')
+    if pointeuse == 0 :
+        wieg_thread = threading.Thread(target=wiegand_listener, args=(Gpio1, Gpio2), daemon=True)
+        wieg_thread.start()
 
-    listener_thread = threading.Thread(target=run_zk_listener, args=(zk_device,), daemon=True)
-    listener_thread.start()
     #trhreading pour la cle USB
     usb_thread = threading.Thread(target=monitor_usb, daemon=True)
     usb_thread.start()

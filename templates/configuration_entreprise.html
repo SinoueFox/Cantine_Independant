@@ -67,6 +67,15 @@
             font-size: 0.9rem;
             margin-bottom: 10px;
         }
+
+        .hidden {
+            display: none;
+        }
+
+        .options-group {
+            text-align: left;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
@@ -83,10 +92,65 @@
             <input class="input-field" type="text" name="nom_societe" placeholder="Nom de l'entreprise" value="{{ nom_societe }}" required>
             <input class="input-field" type="number" name="numero_borne" placeholder="Numéro de la borne" value="{{ numero_borne }}" required>
 
+            <div class="options-group">
+                <label><input type="checkbox" id="pointeuse" onchange="toggleExclusive('pointeuse')"> Pointeuse</label><br>
+                <label><input type="checkbox" id="lecteur" onchange="toggleExclusive('lecteur')"> Lecteur Carte</label><br>
+                <label><input type="checkbox" id="tourniquet" onchange="toggleTourniquet()"> Tourniquet</label>
+            </div>
+
+            <!-- Champs Pointeuse -->
+            <input type="hidden" id="pointeuse_val" name="pointeuse_val">
+            <input class="input-field hidden" type="text" id="ip_pointeuse" name="ip_pointeuse" placeholder="Adresse IP">
+
+            <!-- Champs Lecteur Carte -->
+            <input type="hidden" id="lecteur_val" name="lecteur_val">
+            <input class="input-field hidden" type="number" id="gpio1" name="gpio1" placeholder="GPIO 1">
+            <input class="input-field hidden" type="number" id="gpio2" name="gpio2" placeholder="GPIO 2">
+
+            <!-- Champ Tourniquet -->
+            <input type="hidden" id="tourniquet_val" name="tourniquet_val">
+            <input class="input-field hidden" type="number" id="gpio_tourniquet" name="gpio_tourniquet" placeholder="GPIO Tourniquet">
+
             <button class="btn" type="submit">💾 Enregistrer</button>
+                <script>
+                    document.querySelector("form").addEventListener("submit", function() {
+                    document.getElementById("pointeuse_val").value = document.getElementById("pointeuse").checked ? 1 : 0;
+                    document.getElementById("lecteur_val").value = document.getElementById("lecteur").checked ? 1 : 0;
+                    document.getElementById("tourniquet_val").value = document.getElementById("tourniquet").checked ? 1 : 0;
+                        });
+                </script>
         </form>
 
         <button class="btn" onclick="location.href='/configuration'">⬅️ Retour</button>
     </div>
+
+    <script>
+        function toggleExclusive(selected) {
+            const pointeuse = document.getElementById('pointeuse');
+            const lecteur = document.getElementById('lecteur');
+            const ipField = document.getElementById('ip_pointeuse');
+            const gpio1 = document.getElementById('gpio1');
+            const gpio2 = document.getElementById('gpio2');
+
+            // Exclusivité
+            if (selected === 'pointeuse') {
+                lecteur.checked = false;
+            } else {
+                pointeuse.checked = false;
+            }
+
+            // Affichage des champs
+            ipField.classList.toggle('hidden', !pointeuse.checked);
+            gpio1.classList.toggle('hidden', !lecteur.checked);
+            gpio2.classList.toggle('hidden', !lecteur.checked);
+        }
+
+        function toggleTourniquet() {
+            const tourniquet = document.getElementById('tourniquet');
+            const gpioTourniquet = document.getElementById('gpio_tourniquet');
+            gpioTourniquet.classList.toggle('hidden', !tourniquet.checked);
+        }
+    </script>
 </body>
 </html>
+

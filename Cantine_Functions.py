@@ -2,12 +2,15 @@ import os
 import sqlite3
 import pandas as pd
 from datetime import datetime
+from flask import render_template, request, flash, redirect
 from Printer_Function import print_ticket,print_weekly_summary,print_daily_summary3,print_month_summary,print_daily_report_excel_usb
 from Constantes import time_slots
 from USB_Fonctions import detect_and_mount_usb,mount_usb_manuellement,detect_and_check_usb,usb_presente
 from Fonctions_BDD import Ajouter_Utilisateur_SQLITE  # ← à ne pas oublier !
 from zk import ZK
 from datetime import time as dt_time
+import subprocess
+import re
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 EXCEL_FILENAME = "utilisateurs.xlsx"
@@ -15,7 +18,7 @@ ERREUR_FILENAME = "erreur.txt"
 POINTEUSE_IP = "192.168.100.201"
 POINTEUSE_PORT = 4370
 DB_PATH = os.path.join(CWD, "raspberry_data.db")
-
+DB_FILE = "raspberry_data.db"
 
 LOG_PATH = os.path.join(CWD, "errors.log") # <-- AJOUTEZ CETTE LIGNE
 
@@ -77,96 +80,53 @@ def charger_time_slots():
             "Diner":          {"id_repas": 4, "start": dt_time(17, 31),"end": dt_time(23, 59)},
         }
 
-# def process_attendance(att, user_dict, printer,nom_societe):
-#     """Traite une entrée de pointage"""
-#     print('Process Attendance ')
-#     try:
-#         print('Process Attendance in')
-#         Usb_Key = usb_presente()
-#         print (Usb_Key)
-#         print ("process attendance inin")
-#         print (att)
-#         user_id = att.user_id
-#
-#         print("nom et prenom")
-#         print(user_dict)
-#         user_name = user_dict.get(user_id, "").lower()  # On récupère le nom à partir de l’ID
-#         print (user_name)
-#         timestamp = att.timestamp
-#         timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-#         jour_annee = timestamp.timetuple().tm_yday
-#         annee = timestamp.year
-#
-#         # Traitement rapports
-#         print("rapport")
-#         if user_name == "rapport":
-#             print("📄 Rapport journalier demandé")
-#             if Usb_Key == True :
-#              if not detect_and_check_usb():
-#                 print("🔄 Tentative de montage manuel...")
-#                 if mount_usb_manuellement() and detect_and_check_usb():
-#                     print("✅ Clé USB montée après tentative.")
-#                 else:
-#                     print("⚠️ Rapport non sauvegardé : clé USB absente.")
-#             print_daily_summary3(printer)
-#             return
-#         if user_name == "rapport3":
-#             print("📄 Rapport mensuel demandé")
-#             if Usb_Key == True:
-#                 if not detect_and_check_usb():
-#                     print("🔄 Tentative de montage manuel...")
-#                     if mount_usb_manuellement() and detect_and_check_usb():
-#                         print("✅ Clé USB montée après tentative.")
-#                     else:
-#                         print("⚠️ Rapport non sauvegardé : clé USB absente.")
-#             print_month_summary(printer)
-#             return
-#         print("rapport2")
-#         if user_name == "rapport2":
-#             print("📄 Rapport hebdomadaire demandé")
-#             if Usb_Key == True:
-#                 if not detect_and_check_usb():
-#                     print("🔄 Tentative de montage manuel...")
-#                     if mount_usb_manuellement() and detect_and_check_usb():
-#                         print("✅ Clé USB montée après tentative.")
-#                     else:
-#                         print("⚠️ Rapport non sauvegardé : clé USB absente.")
-#             print_weekly_summary(printer)
-#             return
-#
-#         # Traitement normal
-#         print("traitement normal")
-#         print(timestamp)
-#         label, slot_id = get_time_slot(timestamp)
-#         print(slot_id)
-#         if not slot_id:
-#             print(f"⏱️ Ignoré (hors créneau) : {timestamp_str}")
-#             return
-#         print("traitement normal2")
-#         exempt = user_name.startswith(("visiteur", "superviseur", "invité"))
-#         print("avant exempt")
-#         if exempt:
-#             slot_label = f"{label} ({user_name})"
-#             print_ticket(user_dict, att, slot_label, printer, slot_id, timestamp, True,nom_societe)
-#         else:
-#             # Vérifier doublon dans la même journée/créneau
-#             print('verification doublon')
-#             with sqlite3.connect(DB_PATH) as conn:
-#                 cursor = conn.cursor()
-#                 cursor.execute("""
-#                     SELECT COUNT(*) FROM Consomation
-#                     WHERE id_utilisateur = ? AND TYPE_REPAS = ? AND Jour_annee = ? AND Annee_Consomation = ?
-#                 """, (user_id, slot_id, jour_annee, annee))
-#                 (count,) = cursor.fetchone()
-#
-#         if count > 0:
-#             print(f"[{timestamp_str}] ID {user_id} a déjà consommé ce créneau → pas de ticket.")
-#             return
-#
-#         print_ticket(user_dict, att, label, printer, slot_id, timestamp, False,nom_societe)
-#
-#     except Exception as e:
-#             log_error(f"Erreur process_attendance : {e}")
+
+def config_ip():
+    if request.method == "POST":
+        ip = request.form["ip"]
+
+        # Validation simple IP
+        if not re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip):
+            flash("Adresse IP invalide !", "danger")
+            return redirect("/")
+
+        gateway = extract_gateway(ip)
+
+        try:
+            # Appliquer la nouvelle IP
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.addresses", f"{ip}/{MASK}"],
+                check=True
+            )
+            # Définir passerelle
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.gateway", gateway],
+                check=True
+            )
+            # Définir DNS
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.dns", DNS],
+                check=True
+            )
+            # Forcer méthode statique
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "modify", CONNECTION_NAME, "ipv4.method", "manual"],
+                check=True
+            )
+            # Redémarrer la connexion
+            subprocess.run(
+                ["sudo", "nmcli", "connection", "up", CONNECTION_NAME],
+                check=True
+            )
+
+            flash(f"Nouvelle IP appliquée : {ip} (passerelle : {gateway})", "success")
+
+        except subprocess.CalledProcessError as e:
+            flash(f"Erreur lors de l'application : {e}", "danger")
+
+        return redirect("/")
+
+    return render_template("config_ip.html")
 
 def process_attendance(att, user_dict, printer, nom_societe):
     """Traite une entrée de pointage"""
@@ -229,19 +189,26 @@ def process_attendance(att, user_dict, printer, nom_societe):
         # Traitement normal
         print("traitement normal")
         print(timestamp)
+        print('user id = ' + str(user_id))
         label, slot_id = get_time_slot(timestamp)
         print(slot_id)
         if not slot_id:
             print(f"⏱️ Ignoré (hors créneau) : {timestamp_str}")
             return
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM Utilisateurs WHERE Code_Utilisateur = ?", (user_id,))
+        user = cur.fetchone()
 
         print("traitement normal2")
-        exempt = user_name.startswith(("visiteur", "superviseur", "invité"))
+        print('Utilisateur = ' + str(user[1]))
+        exempt = user[4]
+        #exempt = user_name.startswith(("visiteur", "superviseur", "invité"))
         print(f"avant exempt → exempt={exempt}")
 
         count = 0  # 🔧 Initialisation par défaut pour éviter l'erreur
 
-        if exempt:
+        if exempt==1 :
             slot_label = f"{label} ({user_name})"
             print_ticket(user_dict, att, slot_label, printer, slot_id, timestamp, True, nom_societe)
         else:
