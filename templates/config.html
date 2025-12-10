@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration du Système</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        h1, h2 { color: #333; }
+        .section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table th, table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+        }
+        table th { background: #e0e0e0; }
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #0056b3; }
+        input[type="text"], input[type="number"], input[type="time"] {
+            width: 95%;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>⚙️ Configuration du Système Cantine</h1>
+
+<!-- ============ PARAMETRES GENERAUX ============ -->
+<div class="section">
+    <h2>Paramètres Système</h2>
+
+    <form action="/update_config" method="post">
+        <table>
+            <tbody>
+                <tr><td>Nom Société</td>
+                    <td><input type="text" name="Nom_Societe" value="{{ Nom_Societe }}"></td></tr>
+
+                <tr><td>Imprimante USB</td>
+                    <td><input type="text" name="PRINTER_USB_NAME" value="{{ PRINTER_USB_NAME }}"></td></tr>
+
+                <tr><td>Chemin Log</td>
+                    <td><input type="text" name="LOG_PATH" value="{{ LOG_PATH }}"></td></tr>
+
+                <tr><td>Intervalle USB (s)</td>
+                    <td><input type="number" name="USB_CHECK_INTERVAL" value="{{ USB_CHECK_INTERVAL }}"></td></tr>
+
+                <tr><td>GPIO Tourniquet</td>
+                    <td><input type="number" name="GPIO_TOURNIQUET" value="{{ GPIO_TOURNIQUET }}"></td></tr>
+
+                <tr><td>GPIO1</td>
+                    <td><input type="number" name="GPIO1" value="{{ GPIO1 }}"></td></tr>
+
+                <tr><td>GPIO2</td>
+                    <td><input type="number" name="GPIO2" value="{{ GPIO2 }}"></td></tr>
+
+                <tr><td>MODE_TICKET</td>
+                    <td><input type="number" name="MODE_TICKET" value="{{ MODE_TICKET }}"></td></tr>
+
+                <tr><td>MODE_ABONNEMENT</td>
+                    <td><input type="number" name="MODE_ABONNEMENT" value="{{ MODE_ABONNEMENT }}"></td></tr>
+
+                <tr><td>MODE_S_AB_TICK</td>
+                    <td><input type="number" name="MODE_S_AB_TICK" value="{{ MODE_S_AB_TICK }}"></td></tr>
+
+                <tr><td>MODE_AB_TICK</td>
+                    <td><input type="number" name="MODE_AB_TICK" value="{{ MODE_AB_TICK }}"></td></tr>
+
+            </tbody>
+        </table>
+
+        <br>
+        <button class="btn" type="submit">💾 Enregistrer paramètres</button>
+    </form>
+</div>
+
+<!-- ============ MODE SANS DOUBLON ============ -->
+<div class="section">
+    <h2>Mode Ticket Sans Doublon</h2>
+
+    <form action="/update_mode_sans_doublon" method="post">
+        <input type="checkbox" name="mode_tick_sans_doublon" value="1"
+            {% if mode_tick_sans_doublon == 1 %} checked {% endif %}>
+        <label><strong>Activer</strong></label>
+
+        <br><br>
+        <button type="submit" class="btn">Enregistrer</button>
+    </form>
+</div>
+
+<!-- ============ HORAIRES ============ -->
+<div class="section">
+    <h2>Horaires des Repas</h2>
+
+    <form action="/update_horaires" method="post">
+        <table>
+            <thead>
+                <tr>
+                    <th>Repas</th><th>ID</th><th>Début</th><th>Fin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nom, slot in time_slots.items() %}
+                <tr>
+                    <td>{{ nom }}</td>
+                    <td>{{ slot.id_repas }}</td>
+
+                    <td>
+                        <input type="time"
+                               name="{{ nom }}_start"
+                               value="{{ slot.start.strftime('%H:%M') }}">
+                    </td>
+
+                    <td>
+                        <input type="time"
+                               name="{{ nom }}_end"
+                               value="{{ slot.end.strftime('%H:%M') }}">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <br>
+        <button class="btn">💾 Enregistrer les horaires</button>
+    </form>
+</div>
+
+</body>
+</html>

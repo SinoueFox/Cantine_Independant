@@ -16,6 +16,7 @@ MOUNT_DIR = "/mnt/usb_cle"
 
 def get_usb_printer():
     # Recherche tous les périphériques USB
+    print('GET  USB  PRINTER')
     devices = usb.core.find(find_all=True)
     for dev in devices:
         try:

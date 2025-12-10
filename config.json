@@ -1,6 +1,48 @@
 {
-  "Petit Dejeuner": { "id_repas": 1, "start": "06:00", "end": "09:30" },
-  "Dejeuner":       { "id_repas": 2, "start": "10:00", "end": "14:00" },
-  "Gouter":         { "id_repas": 3, "start": "14:10", "end": "17:30" },
-  "Diner":          { "id_repas": 4, "start": "17:31", "end": "23:59" }
+    "BORNE": 1,
+    "DB_FILE": "raspberry_data.db",
+
+    "POINTEUSE_IP": "192.168.100.201",
+    "POINTEUSE_PORT": 4370,
+
+    "PRINTER_USB_NAME": "USB_Printer",
+
+    "LOG_PATH": "errors.log",
+    "USB_CHECK_INTERVAL": 5,
+
+    "GPIO_TOURNIQUET": 12,
+    "GPIO1": 5,
+    "GPIO2": 4,
+
+    "MODE_TICKET": 0,
+    "MODE_ABONNEMENT": 0,
+    "MODE_S_AB_TICK": 1,
+    "MODE_AB_TICK": 0,
+
+    "MODE_TICK_SANS_DOUBLON": 0,
+
+    "Nom_Societe": "Cantine 001",
+
+    "time_slots": {
+        "Petit Déjeuner": {
+            "id_repas": 1,
+            "start": "00:00",
+            "end": "09:59"
+        },
+        "Dejeuner": {
+            "id_repas": 2,
+            "start": "10:00",
+            "end": "14:00"
+        },
+        "Gouter": {
+            "id_repas": 3,
+            "start": "14:10",
+            "end": "17:30"
+        },
+        "Diner": {
+            "id_repas": 4,
+            "start": "17:31",
+            "end": "23:59"
+        }
+    }
 }
